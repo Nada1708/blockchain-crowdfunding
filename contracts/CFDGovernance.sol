@@ -48,6 +48,7 @@ contract CFDGovernance {
     error VotingClosed();
     error AlreadyVoted();
     error NoVotingPower();
+    error NotSucceeded();
 
     // ───────── 7. Événements ─────────
     event ProposalCreated(
@@ -124,5 +125,46 @@ contract CFDGovernance {
 
         // ── C. JOURNAL ──
         emit VoteCast(id, msg.sender, support, weight);
+    }
+        // ───────── 11. Résultat du vote ─────────
+
+    /// @notice Nombre de voix minimum pour que le vote soit valable (20 % des CFD sur la photo)
+    function quorum(uint256 id) public view returns (uint256) {
+        return token.getPastTotalSupply(proposals[id].snapshot) * QUORUM_PERCENT / 100;
+    }
+
+    /// @notice Où en est la proposition ?
+    function state(uint256 id) public view returns (ProposalState) {
+        Proposal storage p = proposals[id];
+
+        if (p.voteEnd == 0) revert ProposalNotFound();
+        if (p.executed) return ProposalState.Executed;
+        if (block.timestamp < p.voteEnd) return ProposalState.Active;
+
+        bool quorumReached = p.forVotes + p.againstVotes >= quorum(id);
+        bool majority = p.forVotes > p.againstVotes;
+
+        if (quorumReached && majority) return ProposalState.Succeeded;
+        return ProposalState.Defeated;
+    }
+
+    // ───────── 12. Appliquer la décision ─────────
+    function execute(uint256 id) external {
+        // ── A. VÉRIFICATION ──
+        if (state(id) != ProposalState.Succeeded) revert NotSucceeded();
+
+        Proposal storage p = proposals[id];
+
+        // ── B. ENREGISTREMENT (AVANT l'appel externe) ──
+        p.executed = true;
+
+        // ── C. ACTION sur le contrat du Membre 1 ──
+        if (p.pType == ProposalType.Freeze) {
+            crowdfunding.freezeCampaign(p.campaignId);
+        } else {
+            crowdfunding.approveEarlyRelease(p.campaignId, p.amount);
+        }
+
+        emit ProposalExecuted(id);
     }
 }
