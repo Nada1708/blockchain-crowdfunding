@@ -1,0 +1,128 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+import {ICFDVotes} from "./interfaces/ICFDVotes.sol";
+import {ICrowdfunding} from "./interfaces/ICrowdfunding.sol";
+
+/// @title Gouvernance DAO du crowdfunding
+/// @notice Les détenteurs de CFD votent pour geler une campagne ou débloquer des fonds en avance
+contract CFDGovernance {
+    // ───────── 1. Types ─────────
+    enum ProposalType { Freeze, EarlyRelease }
+    enum ProposalState { Active, Defeated, Succeeded, Executed }
+
+    // ───────── 2. La fiche d'une proposition ─────────
+    struct Proposal {
+        ProposalType pType;    // gel ou déblocage
+        uint256 campaignId;    // campagne concernée
+        uint256 amount;        // montant (déblocage uniquement)
+        address proposer;      // qui a proposé
+        uint48 snapshot;       // LA PHOTO des voix
+        uint64 voteEnd;        // fin du vote
+        uint256 forVotes;      // total des OUI
+        uint256 againstVotes;  // total des NON
+        bool executed;         // déjà appliquée ?
+    }
+
+    // ───────── 3. Paramètres (décidés en équipe) ─────────
+    uint256 public constant VOTING_PERIOD = 48 hours;
+    uint256 public constant QUORUM_PERCENT = 20;
+    uint256 public constant PROPOSAL_THRESHOLD = 100e18; // 100 CFD
+
+    // ───────── 4. Liens vers les contrats du Membre 1 ─────────
+    ICFDVotes public immutable token;
+    ICrowdfunding public immutable crowdfunding;
+
+    // ───────── 5. Stockage ─────────
+    uint256 public proposalCount;
+    mapping(uint256 => Proposal) public proposals;
+    mapping(uint256 => mapping(address => bool)) public hasVoted;
+
+    // ───────── 6. Erreurs ─────────
+    error ZeroAddress();
+    error CampaignNotActive();
+    error NotBeneficiary();
+    error BelowProposalThreshold();
+    error InvalidAmount();
+    error ProposalNotFound();
+    error VotingClosed();
+    error AlreadyVoted();
+    error NoVotingPower();
+
+    // ───────── 7. Événements ─────────
+    event ProposalCreated(
+        uint256 indexed id, ProposalType pType, uint256 indexed campaignId,
+        uint256 amount, address indexed proposer, uint48 snapshot, uint64 voteEnd
+    );
+    event VoteCast(uint256 indexed id, address indexed voter, bool support, uint256 weight);
+    event ProposalExecuted(uint256 indexed id);
+
+    // ───────── 8. Constructeur ─────────
+    constructor(ICFDVotes _token, ICrowdfunding _crowdfunding) {
+        if (address(_token) == address(0) || address(_crowdfunding) == address(0)) {
+            revert ZeroAddress();
+        }
+        token = _token;
+        crowdfunding = _crowdfunding;
+    }
+
+    // ───────── 9. Créer une proposition ─────────
+    function propose(ProposalType pType, uint256 campaignId, uint256 amount)
+        external
+        returns (uint256 id)
+    {
+        // ── A. VÉRIFICATIONS ──
+        if (!crowdfunding.isActive(campaignId)) revert CampaignNotActive();
+
+        uint48 snapshot = token.clock() - 1; // la PHOTO : le moment juste avant
+
+        if (pType == ProposalType.EarlyRelease) {
+            // Seul le bénéficiaire peut demander son argent en avance
+            if (msg.sender != crowdfunding.beneficiaryOf(campaignId)) revert NotBeneficiary();
+            if (amount == 0) revert InvalidAmount();
+        } else {
+            // Gel : il faut au moins 100 CFD sur la photo (anti-spam)
+            if (token.getPastVotes(msg.sender, snapshot) < PROPOSAL_THRESHOLD) {
+                revert BelowProposalThreshold();
+            }
+            if (amount != 0) revert InvalidAmount();
+        }
+
+        // ── B. ENREGISTREMENT DE LA FICHE ──
+        id = ++proposalCount;
+        Proposal storage p = proposals[id];
+        p.pType = pType;
+        p.campaignId = campaignId;
+        p.amount = amount;
+        p.proposer = msg.sender;
+        p.snapshot = snapshot;
+        p.voteEnd = uint64(block.timestamp + VOTING_PERIOD);
+
+        // ── C. JOURNAL ──
+        emit ProposalCreated(id, pType, campaignId, amount, msg.sender, snapshot, p.voteEnd);
+    }
+
+    // ───────── 10. Voter ─────────
+    function castVote(uint256 id, bool support) external {
+        Proposal storage p = proposals[id];
+
+        // ── A. VÉRIFICATIONS ──
+        if (p.voteEnd == 0) revert ProposalNotFound();                // la proposition existe ?
+        if (block.timestamp >= p.voteEnd) revert VotingClosed();     // le vote est encore ouvert ?
+        if (hasVoted[id][msg.sender]) revert AlreadyVoted();         // pas de double vote
+
+        uint256 weight = token.getPastVotes(msg.sender, p.snapshot); // poids SUR LA PHOTO
+        if (weight == 0) revert NoVotingPower();
+
+        // ── B. ENREGISTREMENT ──
+        hasVoted[id][msg.sender] = true;
+        if (support) {
+            p.forVotes += weight;
+        } else {
+            p.againstVotes += weight;
+        }
+
+        // ── C. JOURNAL ──
+        emit VoteCast(id, msg.sender, support, weight);
+    }
+}
