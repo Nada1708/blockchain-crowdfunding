@@ -16,10 +16,10 @@
 # Typechain output
 /types
 
-# Environment files
-.env
-.env.*
-!.env.example
+# Environment files containing local secrets (all subdirectories)
+**/.env
+**/.env.*
+!**/.env.example
 
 # Hardhat coverage reports
 /coverage
@@ -30,9 +30,6 @@
 # Snapshot cheatcodes output
 /snapshots
 
-.env
-.env.*
-!.env.example
 node_modules
 artifacts
 cache

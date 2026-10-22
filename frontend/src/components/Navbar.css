@@ -1,0 +1,252 @@
+
+.fundora-navbar {
+  width: 100%;
+  min-height: 80px;
+  padding: 14px 5%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  background: var(--navbar-bg);
+  border-bottom: 1px solid var(--border);
+  position: static;
+}
+
+.fundora-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text);
+  font-size: 25px;
+  font-weight: 800;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.fundora-logo-placeholder {
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  background: var(--accent);
+  color: var(--accent-text);
+  display: grid;
+  place-items: center;
+  font-size: 20px;
+}
+
+.fundora-dot {
+  color: var(--accent);
+}
+
+.fundora-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  gap: clamp(12px, 2vw, 30px);
+}
+
+.fundora-nav a {
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: color 0.2s;
+}
+
+.fundora-nav a:hover {
+  color: var(--accent);
+}
+
+.fundora-nav a.active {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.fundora-actions {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.language-toggle,
+.theme-toggle,
+.mobile-menu-toggle {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 21px;
+  cursor: pointer;
+}
+
+.language-toggle {
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.wallet-button {
+  padding: 12px 18px;
+  border: none;
+  border-radius: 10px;
+  background: var(--accent);
+  color: var(--accent-text);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.wallet-button:disabled {
+  opacity: 0.75;
+  cursor: not-allowed;
+}
+
+.wallet-panel {
+  position: absolute;
+  top: calc(100% + 12px);
+  right: 0;
+  z-index: 120;
+  width: min(290px, calc(100vw - 32px));
+  padding: 16px;
+  color: var(--text);
+  background: var(--surface-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-elevated);
+}
+
+.wallet-panel p { margin: 0; font-size: 13px; line-height: 1.5; }
+.wallet-panel-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; color: var(--muted); font-size: 13px; }
+.wallet-panel-row strong { color: var(--accent); }
+.wallet-panel-row strong.is-warning, .wallet-warning, .wallet-error { color: #b45309; }
+[data-theme='dark'] .wallet-panel-row strong.is-warning,
+[data-theme='dark'] .wallet-warning,
+[data-theme='dark'] .wallet-error { color: #ffbd73; }
+.wallet-warning { margin-top: 9px !important; font-weight: 650; }
+.wallet-local-note { margin-top: 12px !important; color: var(--muted); }
+.wallet-disconnect { width: 100%; min-height: 38px; margin-top: 14px; color: var(--text); background: var(--background); border: 1px solid var(--border); border-radius: 9px; cursor: pointer; font-weight: 700; }
+
+.mobile-menu-toggle {
+  display: none;
+}
+
+/* Tablette et mobile */
+@media (max-width: 900px) {
+  .fundora-navbar {
+    min-height: 72px;
+  }
+
+  .fundora-brand {
+    font-size: 21px;
+  }
+
+  .fundora-nav {
+    display: none;
+    position: absolute;
+    z-index: 100;
+    top: 72px;
+    left: 0;
+    right: 0;
+    padding: 18px 5%;
+    background: var(--navbar-bg);
+    border-bottom: 1px solid var(--border);
+    box-shadow: 0 12px 24px var(--shadow);
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+  }
+
+  .fundora-nav.is-open {
+    display: flex;
+  }
+
+  .fundora-nav a {
+    padding: 14px 10px;
+  }
+
+  .mobile-menu-toggle {
+    display: grid;
+  }
+}
+
+@media (max-width: 480px) {
+  .fundora-navbar {
+    padding: 12px 3%;
+    gap: 6px;
+  }
+
+  .fundora-brand {
+    font-size: 18px;
+    gap: 6px;
+  }
+
+  .fundora-logo-placeholder {
+    width: 30px;
+    height: 30px;
+    font-size: 16px;
+  }
+
+  .fundora-actions {
+    gap: 5px;
+  }
+
+  .language-toggle,
+  .theme-toggle,
+  .mobile-menu-toggle {
+    width: 34px;
+    height: 34px;
+    font-size: 18px;
+  }
+
+  .language-toggle {
+    font-size: 10px;
+  }
+
+  .wallet-button {
+    padding: 9px 8px;
+    font-size: 11px;
+  }
+
+  .fundora-nav {
+    top: 59px;
+  }
+
+}
+
+@media (max-width: 370px) {
+  .fundora-brand {
+    font-size: 16px;
+  }
+
+  .wallet-button {
+    max-width: 76px;
+    padding: 7px 5px;
+    white-space: normal;
+    font-size: 10px;
+  }
+}
+
+.language-toggle,
+.theme-toggle {
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    transform 0.2s ease;
+}
+
+.language-toggle:hover,
+.theme-toggle:hover {
+  background: var(--surface);
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+
+.language-toggle svg,
+.theme-toggle svg {
+  display: block;
+}

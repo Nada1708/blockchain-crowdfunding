@@ -1,0 +1,30 @@
+.proposal-card { min-width: 0; padding: 24px; display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-card); }
+.proposal-card-top, .proposal-badges, .proposal-type, .proposal-period, .proposal-vote-labels, .proposal-quorum > div:first-child, .proposal-actions { display: flex; align-items: center; }
+.proposal-card-top { justify-content: space-between; gap: 12px; }
+.proposal-badges { gap: 7px; }
+.proposal-demo, .proposal-status { padding: 5px 8px; border-radius: 999px; font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.proposal-demo { color: var(--accent-text); background: var(--accent); }
+.proposal-status { color: var(--muted); background: var(--background); border: 1px solid var(--border); }
+.proposal-status-active, .proposal-status-passed { color: var(--accent); }
+.proposal-type { gap: 6px; color: var(--muted); font-size: 12px; font-weight: 700; }
+.proposal-campaign { margin: 22px 0 8px; font-size: 13px; }
+.proposal-campaign strong { color: var(--text); }
+.proposal-card h2 { margin: 0; color: var(--text-strong); font-size: 21px; line-height: 1.32; }
+.proposal-description { margin: 12px 0 18px; font-size: 15px; line-height: 1.65; }
+.proposal-period { margin: 0 0 24px; gap: 7px; color: var(--muted); font-size: 13px; font-weight: 650; }
+.proposal-votes { margin-top: auto; }
+.proposal-vote-labels { justify-content: space-between; gap: 12px; color: var(--muted); font-size: 12px; }
+.proposal-vote-labels strong { color: var(--text); }
+.proposal-vote-bar, .proposal-quorum-bar { overflow: hidden; background: var(--border); border-radius: 999px; }
+.proposal-vote-bar { height: 8px; margin-top: 9px; }
+.proposal-vote-bar span { height: 100%; display: block; background: var(--accent); border-radius: inherit; }
+.proposal-quorum { margin-top: 20px; }
+.proposal-quorum > div:first-child { justify-content: space-between; color: var(--muted); font-size: 12px; font-weight: 700; }
+.proposal-quorum > div:first-child strong { color: var(--text); }
+.proposal-quorum-bar { height: 6px; margin: 8px 0; }
+.proposal-quorum-bar span { height: 100%; display: block; background: color-mix(in srgb, var(--accent) 60%, #8a70dc); border-radius: inherit; }
+.proposal-quorum small { color: var(--muted); font-size: 11px; }
+.proposal-actions { margin-top: 22px; gap: 10px; }
+.proposal-actions button { min-height: 42px; flex: 1; color: var(--muted); background: var(--background); border: 1px solid var(--border); border-radius: var(--radius-sm); font-weight: 700; }
+.proposal-actions button:disabled { cursor: not-allowed; opacity: .72; }
+@media (max-width: 480px) { .proposal-card { padding: 20px; } .proposal-card-top { align-items: flex-start; flex-direction: column; } }
