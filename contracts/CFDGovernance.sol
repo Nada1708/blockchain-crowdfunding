@@ -3,10 +3,12 @@ pragma solidity ^0.8.24;
 
 import {ICFDVotes} from "./interfaces/ICFDVotes.sol";
 import {ICrowdfunding} from "./interfaces/ICrowdfunding.sol";
+import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
+import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 
 /// @title Gouvernance DAO du crowdfunding
 /// @notice Les détenteurs de CFD votent pour geler une campagne ou débloquer des fonds en avance
-contract CFDGovernance {
+contract CFDGovernance is AccessControl, Pausable {
     // ───────── 1. Types ─────────
     enum ProposalType { Freeze, EarlyRelease }
     enum ProposalState { Active, Defeated, Succeeded, Executed }
@@ -28,6 +30,7 @@ contract CFDGovernance {
     uint256 public constant VOTING_PERIOD = 48 hours;
     uint256 public constant QUORUM_PERCENT = 20;
     uint256 public constant PROPOSAL_THRESHOLD = 100e18; // 100 CFD
+    bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
 
     // ───────── 4. Liens vers les contrats du Membre 1 ─────────
     ICFDVotes public immutable token;
@@ -59,17 +62,34 @@ contract CFDGovernance {
     event ProposalExecuted(uint256 indexed id);
 
     // ───────── 8. Constructeur ─────────
-    constructor(ICFDVotes _token, ICrowdfunding _crowdfunding) {
-        if (address(_token) == address(0) || address(_crowdfunding) == address(0)) {
+    /// @param admin reçoit les badges admin et pause (en production : la multisig)
+    constructor(ICFDVotes _token, ICrowdfunding _crowdfunding, address admin) {
+        if (
+            address(_token) == address(0) ||
+            address(_crowdfunding) == address(0) ||
+            admin == address(0)
+        ) {
             revert ZeroAddress();
         }
         token = _token;
         crowdfunding = _crowdfunding;
+        _grantRole(DEFAULT_ADMIN_ROLE, admin);
+        _grantRole(PAUSER_ROLE, admin);
+    }
+
+    // ───────── Pause d'urgence (circuit breaker) ─────────
+    function pause() external onlyRole(PAUSER_ROLE) {
+        _pause();
+    }
+
+    function unpause() external onlyRole(PAUSER_ROLE) {
+        _unpause();
     }
 
     // ───────── 9. Créer une proposition ─────────
     function propose(ProposalType pType, uint256 campaignId, uint256 amount)
         external
+        whenNotPaused
         returns (uint256 id)
     {
         // ── A. VÉRIFICATIONS ──
@@ -103,7 +123,7 @@ contract CFDGovernance {
         emit ProposalCreated(id, pType, campaignId, amount, msg.sender, snapshot, p.voteEnd);
     }
 
-    // ───────── 10. Voter ─────────
+    // ───────── 10. Voter (reste ouvert pendant une pause) ─────────
     function castVote(uint256 id, bool support) external {
         Proposal storage p = proposals[id];
 
@@ -126,7 +146,8 @@ contract CFDGovernance {
         // ── C. JOURNAL ──
         emit VoteCast(id, msg.sender, support, weight);
     }
-        // ───────── 11. Résultat du vote ─────────
+
+    // ───────── 11. Résultat du vote ─────────
 
     /// @notice Nombre de voix minimum pour que le vote soit valable (20 % des CFD sur la photo)
     function quorum(uint256 id) public view returns (uint256) {
@@ -149,7 +170,7 @@ contract CFDGovernance {
     }
 
     // ───────── 12. Appliquer la décision ─────────
-    function execute(uint256 id) external {
+    function execute(uint256 id) external whenNotPaused {
         // ── A. VÉRIFICATION ──
         if (state(id) != ProposalState.Succeeded) revert NotSucceeded();
 

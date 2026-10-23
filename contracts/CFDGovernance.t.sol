@@ -6,6 +6,8 @@ import {CFDGovernance} from "./CFDGovernance.sol";
 import {ICFDVotes} from "./interfaces/ICFDVotes.sol";
 import {MockCFDToken} from "./mocks/MockCFDToken.sol";
 import {MockCrowdfunding} from "./mocks/MockCrowdfunding.sol";
+import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
+import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 
 contract CFDGovernanceTest is Test {
     MockCFDToken token;
@@ -23,7 +25,7 @@ contract CFDGovernanceTest is Test {
     function setUp() public {
         token = new MockCFDToken();
         cf = new MockCrowdfunding();
-        dao = new CFDGovernance(ICFDVotes(address(token)), cf);
+        dao = new CFDGovernance(ICFDVotes(address(token)), cf, address(this)); // le test joue l'admin
 
         cf.setGovernance(address(dao));
         cf.setCampaign(1, sara, true);
@@ -180,5 +182,37 @@ contract CFDGovernanceTest is Test {
 
         vm.prank(voter); dao.castVote(id, true);
         assertEq(_forVotes(id), amount);   // seul le solde de la photo compte
+    }
+
+    // ═════ 6. PAUSE D'URGENCE ═════
+
+    function test_PauseBlocksExecution() public {
+        uint256 id = _proposeFreeze();
+        vm.prank(ali); dao.castVote(id, true);
+        vm.warp(block.timestamp + 48 hours);
+
+        dao.pause();                                   // incident : bouton rouge
+        vm.expectRevert(Pausable.EnforcedPause.selector);
+        dao.execute(id);
+
+        dao.unpause();                                 // incident réglé
+        dao.execute(id);
+        assertTrue(cf.frozen(1));
+    }
+
+    function test_PauseBlocksNewProposals() public {
+        dao.pause();
+        vm.prank(ali);
+        vm.expectRevert(Pausable.EnforcedPause.selector);
+        dao.propose(CFDGovernance.ProposalType.Freeze, 1, 0);
+    }
+
+    function test_RevertWhen_AttackerPauses() public {
+        bytes32 role = dao.PAUSER_ROLE();
+        vm.prank(attacker);
+        vm.expectRevert(
+            abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, attacker, role)
+        );
+        dao.pause();
     }
 }
