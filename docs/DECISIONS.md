@@ -1,80 +1,62 @@
 ﻿# Décisions du projet Blockchain Crowdfunding
 
-> Statut : propositions à valider collectivement avant l'implémentation.
+> Statut : implémenté dans `contracts/` (branche `feature/token-core`). Les points marqués **[À valider]** concernent aussi la DAO (membre 2).
 
-## 1. Jeton CFD
-- Nom : Crowdfunding Token
-- Symbole : CFD
-- Décimales : 18
-- Offre initiale : à décider
-- Création de nouveaux CFD (mint) : uniquement par le contrat Crowdfunding autorisé
-- Propriétaire du token : à définir et sécuriser
+## 1. Jeton CFD (`CFDToken.sol`)
+- Nom : Crowdfunding Token, symbole : CFD, 18 décimales
+- Standards : ERC20 + ERC20Permit + ERC20Votes (snapshot via `getPastVotes`) + AccessControl
+- Offre initiale : aucune, les CFD sont créés uniquement à la contribution
+- `mint` : réservé à `MINTER_ROLE` (donné au contrat Crowdfunding)
+- `burn` : réservé à `BURNER_ROLE` (donné au contrat Crowdfunding)
+- Compatible avec l'interface `ICFDVotes` de la DAO
 
 ## 2. Conversion ETH vers CFD
-- Taux proposé : 1 ETH = 1000 CFD
-- Statut du taux : à valider par l'équipe
-- Calcul : utiliser les unités minimales du token et les wei, sans nombres flottants
+- Taux : 1 ETH = 1000 CFD (`RATE = 1000`)
+- Calcul entier en wei, sans nombres flottants
 
 ## 3. Campagnes
-- Objectif minimal : supérieur à zéro
-- Durée : à décider
-- Bénéficiaire : adresse fournie à la création de la campagne
-- Métadonnées du projet : CID IPFS
-- Contribution minimale : à décider
-- Contribution maximale : à décider
+- Création : `createCampaign(beneficiary, goal, duration, cid)`, ouverte à tous
+- Objectif > 0, bénéficiaire non nul, durée entre 1 seconde et 365 jours
+- Métadonnées : CID IPFS stocké dans la campagne
+- Contribution minimale : 0,01 ETH, pas de maximum
 
 ## 4. Échec et remboursement
-- Une campagne échoue si la date limite est passée et que l'objectif n'est pas atteint
-- Remboursement : chaque contributeur réclame sa propre contribution
-- Double remboursement : interdit
-- Moment où les remboursements sont possibles : après la date limite, si l'objectif n'est pas atteint
-- Traitement des CFD attribués lors d'un remboursement : à décider avec le membre 2
+- Une campagne échoue si la date limite est passée et l'objectif non atteint
+- `refund(id)` : possible si la campagne a échoué **ou** est gelée
+- Montant : au prorata de ce qui reste (`raised - withdrawn`)
+- Double remboursement impossible (contribution remise à zéro avant l'envoi)
+- Les CFD du contributeur sont **brûlés** : il doit les avoir encore, sinon le remboursement échoue
 
 ## 5. Réussite et retrait
-- Une campagne réussit si l'objectif est atteint selon les règles définies par l'équipe
-- Le bénéficiaire ne peut pas retirer avant l'autorisation de gouvernance
-- Double retrait : interdit
-- Les conditions exactes de retrait : à valider avec le membre 2
+- Le bénéficiaire ne retire que ce que la DAO a autorisé : `approveEarlyRelease(id, amount)` (montants cumulatifs, jamais au-delà de ce qui a été levé)
+- `withdraw(id)` : réservé au bénéficiaire, retire `approved - withdrawn`, impossible si la campagne est gelée
+- Double retrait impossible
 
 ## 6. Gouvernance
-- Adresse du contrat de gouvernance : configurée de manière contrôlée
-- Fonction d'autorisation : authorizeWithdrawal(campaignId)
-- Fonction de gel : freezeCampaign(campaignId)
-- Qui peut autoriser un retrait : uniquement le contrat de gouvernance
-- Qui peut geler une campagne : à définir avec le membre 2
-- Conditions de dégel : à définir avec le membre 2
+- Rôle `GOVERNANCE_ROLE` donné à l'adresse de la DAO au déploiement (`grantRole`)
+- `freezeCampaign(id)` et `approveEarlyRelease(id, amount)` : réservés à ce rôle
+- `unfreezeCampaign(id)` : réservé à ce rôle **[À valider]**
+- Interface imposée par la DAO : `contracts/interfaces/ICrowdfunding.sol`
 
 ## 7. Sécurité
-- Protection contre la réentrance : prévue pour les transferts d'ETH
-- Ordre des opérations : Checks-Effects-Interactions
-- Pause d'urgence : à définir avec le membre 2
-- Multisignature : 2 signatures sur 3 pour les actions concernées
-- Seuil financier nécessitant la multisignature : à décider
+- `ReentrancyGuard` sur `refund` et `withdraw`
+- Checks-Effects-Interactions respecté
+- Droits d'accès par rôles (AccessControl), aucun `tx.origin`
+- Pause d'urgence globale : non implémentée, le gel se fait par campagne **[À valider]**
+- Multisignature 2 sur 3 : à mettre sur le compte admin / la DAO **[À valider]**
 - Aucun ETH réel : développement local et testnet uniquement
 
 ## 8. Votes et droits de gouvernance
-- Les CFD donnent-ils des droits de vote ? À décider
-- Standard de vote : ERC20Votes si retenu par l'équipe
-- Délégation des votes : à définir
-- Moment de référence des votes (snapshot) : à définir avec le membre 2
-- Neutralisation ou destruction des CFD après remboursement : à définir
-- Transferts de CFD et impact sur les votes : à définir
+- Les CFD donnent des droits de vote (ERC20Votes)
+- Délégation : auto-délégation au premier mint, redélégation possible avec `delegate()`
+- CFD brûlés lors d'un remboursement, donc plus de voix sans argent engagé
+- Les CFD restent transférables, le remboursement exige de les détenir **[À valider]**
 
-## 9. Événements à prévoir
-- CampaignCreated
-- ContributionReceived
-- RefundIssued
-- WithdrawalAuthorized
-- WithdrawalExecuted
-- CampaignFrozen
+## 9. Événements
+CampaignCreated, ContributionReceived, RefundIssued, WithdrawalAuthorized, WithdrawalExecuted, CampaignFrozen, CampaignUnfrozen
 
-Les noms définitifs des événements seront alignés sur le code.
-
-## 10. Décisions à confirmer en équipe
-- [ ] Valider le taux ETH/CFD
-- [ ] Fixer la durée et les objectifs des campagnes
-- [ ] Valider les règles d'échec et de remboursement
-- [ ] Définir les conditions d'autorisation de retrait
-- [ ] Définir la pause et les permissions de gel
-- [ ] Définir le seuil multisignature 2-sur-3
-- [ ] Décider des droits de vote et du traitement des CFD remboursés
+## 10. Déploiement (ordre)
+1. Déployer `CFDToken(admin)`
+2. Déployer `Crowdfunding(adresseToken, admin)`
+3. `token.grantRole(MINTER_ROLE, crowdfunding)` et `token.grantRole(BURNER_ROLE, crowdfunding)`
+4. `crowdfunding.grantRole(GOVERNANCE_ROLE, dao)`
