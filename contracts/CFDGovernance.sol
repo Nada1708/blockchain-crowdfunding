@@ -169,23 +169,22 @@ contract CFDGovernance is AccessControl, Pausable {
         return ProposalState.Defeated;
     }
 
-    // ───────── 12. Appliquer la décision ─────────
+       // ───────── 12. Appliquer la décision ─────────
     function execute(uint256 id) external whenNotPaused {
-        // ── A. VÉRIFICATION ──
+        // ── A. CHECKS ──
         if (state(id) != ProposalState.Succeeded) revert NotSucceeded();
 
         Proposal storage p = proposals[id];
 
-        // ── B. ENREGISTREMENT (AVANT l'appel externe) ──
+        // ── B. EFFECTS : état ET journal AVANT l'appel externe ──
         p.executed = true;
+        emit ProposalExecuted(id);     // ← déplacé ici
 
-        // ── C. ACTION sur le contrat du Membre 1 ──
+        // ── C. INTERACTIONS : appel au contrat du Membre 1 ──
         if (p.pType == ProposalType.Freeze) {
             crowdfunding.freezeCampaign(p.campaignId);
         } else {
             crowdfunding.approveEarlyRelease(p.campaignId, p.amount);
         }
-
-        emit ProposalExecuted(id);
     }
 }
