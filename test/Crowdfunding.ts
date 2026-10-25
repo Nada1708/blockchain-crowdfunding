@@ -104,7 +104,7 @@ describe("Crowdfunding + CFDToken", function () {
 
     it("refuse le retrait sans autorisation de la DAO", async function () {
       await expect(
-        cf.connect(ben).withdraw(1),
+        cf.connect(ben).withdrawFunds(1),
       ).to.be.revertedWithCustomError(cf, "NothingToWithdraw");
     });
 
@@ -118,16 +118,16 @@ describe("Crowdfunding + CFDToken", function () {
       await cf.connect(dao).approveEarlyRelease(1, ETH("2"));
 
       await expect(
-        cf.connect(mal).withdraw(1),
+        cf.connect(mal).withdrawFunds(1),
       ).to.be.revertedWithCustomError(cf, "NotBeneficiary");
 
       const avant = await ethers.provider.getBalance(ben.address);
-      const recu = await (await cf.connect(ben).withdraw(1)).wait();
+      const recu = await (await cf.connect(ben).withdrawFunds(1)).wait();
       const apres = await ethers.provider.getBalance(ben.address);
       expect(apres - avant + recu.fee).to.equal(ETH("2"));
 
       await expect(
-        cf.connect(ben).withdraw(1),
+        cf.connect(ben).withdrawFunds(1),
       ).to.be.revertedWithCustomError(cf, "NothingToWithdraw");
     });
 
@@ -143,7 +143,7 @@ describe("Crowdfunding + CFDToken", function () {
       await cf.connect(alice).contribute(1, { value: ETH("3") });
       await cf.connect(bob).contribute(1, { value: ETH("3") });
       await cf.connect(dao).approveEarlyRelease(1, ETH("2"));
-      await cf.connect(ben).withdraw(1);
+      await cf.connect(ben).withdrawFunds(1);
       await cf.connect(dao).freezeCampaign(1);
     });
 

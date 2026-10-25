@@ -3,23 +3,29 @@ pragma solidity ^0.8.24;
 
 import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 import {ICrowdfunding} from "./interfaces/ICrowdfunding.sol";
 import {CFDToken} from "./CFDToken.sol";
 
 /// @title Plateforme de financement participatif
 /// @notice Les contributeurs reçoivent des CFD (voix de gouvernance). La DAO
 ///         peut geler une campagne et autoriser des retraits au bénéficiaire.
-contract Crowdfunding is ICrowdfunding, AccessControl, ReentrancyGuard {
+contract Crowdfunding is ICrowdfunding, AccessControl, ReentrancyGuard, Pausable {
     bytes32 public constant GOVERNANCE_ROLE = keccak256("GOVERNANCE_ROLE");
+    bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
 
     uint256 public constant RATE = 1000;                 // 1 ETH = 1000 CFD
     uint256 public constant MIN_CONTRIBUTION = 0.01 ether;
     uint256 public constant MAX_DURATION = 365 days;
 
+    enum Status { Active, Successful, Failed, Cancelled }
+
     struct Campaign {
         address beneficiary;
+        address creator;
         uint64 deadline;
         bool frozen;
+        bool cancelled;
         uint256 goal;
         uint256 raised;      // total reçu (wei)
         uint256 approved;    // total autorisé par la DAO (cumulatif)
@@ -39,11 +45,15 @@ contract Crowdfunding is ICrowdfunding, AccessControl, ReentrancyGuard {
     event WithdrawalExecuted(uint256 indexed id, address indexed beneficiary, uint256 amount);
     event CampaignFrozen(uint256 indexed id);
     event CampaignUnfrozen(uint256 indexed id);
+    event CampaignCancelled(uint256 indexed id);
 
     error UnknownCampaign();
     error InvalidParameters();
     error CampaignClosed();
     error CampaignIsFrozen();
+    error CampaignIsCancelled();
+    error NotCreator();
+    error AlreadyWithdrawn();
     error ContributionTooLow();
     error NotRefundable();
     error NothingToRefund();
@@ -56,6 +66,7 @@ contract Crowdfunding is ICrowdfunding, AccessControl, ReentrancyGuard {
         require(token_ != address(0) && admin != address(0), "Zero address");
         token = CFDToken(token_);
         _grantRole(DEFAULT_ADMIN_ROLE, admin);
+        _grantRole(PAUSER_ROLE, admin);
     }
 
     // ------------------------------------------------------------ Campagnes
@@ -68,13 +79,19 @@ contract Crowdfunding is ICrowdfunding, AccessControl, ReentrancyGuard {
         }
         id = ++campaignCount;
         uint64 deadline = uint64(block.timestamp + duration);
-        _campaigns[id] = Campaign(beneficiary, deadline, false, goal, 0, 0, 0, cid);
+        Campaign storage c = _campaigns[id];
+        c.beneficiary = beneficiary;
+        c.creator = msg.sender;
+        c.deadline = deadline;
+        c.goal = goal;
+        c.cid = cid;
         emit CampaignCreated(id, beneficiary, goal, deadline, cid);
     }
 
-    function contribute(uint256 id) external payable {
+    function contribute(uint256 id) external payable whenNotPaused {
         Campaign storage c = _get(id);
         if (c.frozen) revert CampaignIsFrozen();
+        if (c.cancelled) revert CampaignIsCancelled();
         if (block.timestamp >= c.deadline) revert CampaignClosed();
         if (msg.value < MIN_CONTRIBUTION) revert ContributionTooLow();
 
@@ -88,13 +105,13 @@ contract Crowdfunding is ICrowdfunding, AccessControl, ReentrancyGuard {
 
     // --------------------------------------------------------- Remboursement
 
-    /// @notice Possible si la campagne est gelée, ou si la date limite est
-    ///         passée sans que l'objectif soit atteint. Remboursement au
+    /// @notice Possible si la campagne est gelée, annulée, ou si la date limite
+    ///         est passée sans que l'objectif soit atteint. Remboursement au
     ///         prorata de ce qui reste dans la campagne ; les CFD sont brûlés.
-    function refund(uint256 id) external nonReentrant {
+    function refund(uint256 id) external whenNotPaused nonReentrant {
         Campaign storage c = _get(id);
         bool failed = block.timestamp >= c.deadline && c.raised < c.goal;
-        if (!c.frozen && !failed) revert NotRefundable();
+        if (!c.frozen && !c.cancelled && !failed) revert NotRefundable();
 
         uint256 paid = contributions[id][msg.sender];
         if (paid == 0) revert NothingToRefund();
@@ -113,10 +130,11 @@ contract Crowdfunding is ICrowdfunding, AccessControl, ReentrancyGuard {
 
     // ---------------------------------------------------- Retrait bénéficiaire
 
-    function withdraw(uint256 id) external nonReentrant {
+    function withdrawFunds(uint256 id) external whenNotPaused nonReentrant {
         Campaign storage c = _get(id);
         if (msg.sender != c.beneficiary) revert NotBeneficiary();
         if (c.frozen) revert CampaignIsFrozen();
+        if (c.cancelled) revert CampaignIsCancelled();
 
         uint256 amount = c.approved - c.withdrawn;
         if (amount == 0) revert NothingToWithdraw();
@@ -125,6 +143,28 @@ contract Crowdfunding is ICrowdfunding, AccessControl, ReentrancyGuard {
         (bool ok, ) = c.beneficiary.call{value: amount}("");   // Interactions
         if (!ok) revert TransferFailed();
         emit WithdrawalExecuted(id, c.beneficiary, amount);
+    }
+
+    /// @notice Le créateur peut annuler tant que rien n'a été retiré ;
+    ///         les contributeurs peuvent alors se faire rembourser.
+    function cancelCampaign(uint256 id) external {
+        Campaign storage c = _get(id);
+        if (msg.sender != c.creator) revert NotCreator();
+        if (c.cancelled) revert CampaignIsCancelled();
+        if (c.withdrawn > 0) revert AlreadyWithdrawn();
+        c.cancelled = true;
+        emit CampaignCancelled(id);
+    }
+
+    // ------------------------------------------------------ Circuit breaker
+
+    /// @notice Pause d'urgence : suspend contributions, remboursements et retraits.
+    function pause() external onlyRole(PAUSER_ROLE) {
+        _pause();
+    }
+
+    function unpause() external onlyRole(PAUSER_ROLE) {
+        _unpause();
     }
 
     // ------------------------------------------------------ Réservé à la DAO
@@ -145,6 +185,7 @@ contract Crowdfunding is ICrowdfunding, AccessControl, ReentrancyGuard {
     function approveEarlyRelease(uint256 id, uint256 amount) external override onlyRole(GOVERNANCE_ROLE) {
         Campaign storage c = _get(id);
         if (c.frozen) revert CampaignIsFrozen();
+        if (c.cancelled) revert CampaignIsCancelled();
         if (amount == 0 || c.approved + amount > c.raised) revert ExceedsRaised();
         c.approved += amount;
         emit WithdrawalAuthorized(id, amount, c.approved);
@@ -155,7 +196,15 @@ contract Crowdfunding is ICrowdfunding, AccessControl, ReentrancyGuard {
     function isActive(uint256 id) external view override returns (bool) {
         if (id == 0 || id > campaignCount) return false;
         Campaign storage c = _campaigns[id];
-        return !c.frozen && block.timestamp < c.deadline;
+        return !c.frozen && !c.cancelled && block.timestamp < c.deadline;
+    }
+
+    /// @notice Statut : Annulée > En cours (avant la date limite) > Réussie / Échouée.
+    function status(uint256 id) public view returns (Status) {
+        Campaign storage c = _get(id);
+        if (c.cancelled) return Status.Cancelled;
+        if (block.timestamp < c.deadline) return Status.Active;
+        return c.raised >= c.goal ? Status.Successful : Status.Failed;
     }
 
     function beneficiaryOf(uint256 id) external view override returns (address) {
