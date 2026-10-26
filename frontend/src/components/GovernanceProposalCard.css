@@ -28,3 +28,22 @@
 .proposal-actions button { min-height: 42px; flex: 1; color: var(--muted); background: var(--background); border: 1px solid var(--border); border-radius: var(--radius-sm); font-weight: 700; }
 .proposal-actions button:disabled { cursor: not-allowed; opacity: .72; }
 @media (max-width: 480px) { .proposal-card { padding: 20px; } .proposal-card-top { align-items: flex-start; flex-direction: column; } }
+.proposal-onchain { padding: 5px 8px; color: var(--accent-text); background: var(--accent); border-radius: 999px; font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.proposal-snapshot { margin: -14px 0 24px; color: var(--muted); font-size: 12px; }
+.onchain-vote-panel { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); }
+.onchain-vote-panel > p { margin: 0 0 10px; color: var(--muted); font-size: 12px; line-height: 1.5; }
+.onchain-vote-panel .proposal-actions { margin-top: 12px; }
+.onchain-vote-panel .proposal-actions button:not(:disabled) { color: var(--accent-text); background: var(--accent); border-color: var(--accent); cursor: pointer; transition: transform var(--transition), filter var(--transition); }
+.onchain-vote-panel .proposal-actions button:not(:disabled):hover { filter: brightness(1.05); transform: translateY(-1px); }
+.onchain-vote-panel .proposal-actions button:not(:disabled):focus-visible { outline: 3px solid color-mix(in srgb, var(--accent) 30%, transparent); outline-offset: 2px; }
+.onchain-vote-error { color: #b45309 !important; font-weight: 650; }
+[data-theme='dark'] .onchain-vote-error { color: #ffbd73 !important; }
+.onchain-vote-status, .onchain-vote-success { color: var(--accent) !important; font-weight: 700; }
+.onchain-vote-hash { display: grid; gap: 4px; }
+.onchain-vote-hash code { overflow-wrap: anywhere; color: var(--text); font-size: 10px; }
+.onchain-execution-panel { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); }
+.onchain-execution-panel > p { margin: 0 0 10px; color: var(--muted); font-size: 12px; line-height: 1.5; }
+.proposal-execute-button { width: 100%; min-height: 44px; padding: 0 16px; color: var(--accent-text); background: var(--accent); border: 1px solid var(--accent); border-radius: var(--radius-sm); cursor: pointer; font-weight: 750; transition: transform var(--transition), filter var(--transition); }
+.proposal-execute-button:not(:disabled):hover { filter: brightness(1.05); transform: translateY(-1px); }
+.proposal-execute-button:focus-visible { outline: 3px solid color-mix(in srgb, var(--accent) 30%, transparent); outline-offset: 2px; }
+.proposal-execute-button:disabled { cursor: not-allowed; opacity: .58; }

@@ -11,7 +11,7 @@ export default function Navbar({ theme, toggleTheme }: NavbarProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [walletOpen, setWalletOpen] = useState(false);
   const { t, i18n } = useTranslation();
-  const { address, chainId, isMetaMaskAvailable, isConnecting, error, isSepolia, connect, disconnectLocal, clearError } = useWallet();
+  const { address, chainId, isMetaMaskAvailable, isConnecting, error, cfdBalance, isCfdBalanceLoading, isSwitchingNetwork, networkError, connect, switchToHardhat, disconnectLocal, clearError } = useWallet();
   const language = i18n.resolvedLanguage?.startsWith('fr') ? 'fr' : 'en';
   const links = [
     { label: t('nav.home'), to: '/' },
@@ -20,7 +20,8 @@ export default function Navbar({ theme, toggleTheme }: NavbarProps) {
     { label: t('nav.governance'), to: '/governance' },
   ];
   const shortAddress = address ? `${address.slice(0, 6)}…${address.slice(-4)}` : '';
-  const networkLabel = chainId === 11155111 ? t('wallet.sepolia') : chainId ? t('wallet.chain', { id: chainId }) : t('wallet.unknownNetwork');
+  const isHardhatLocal = chainId === 31337;
+  const networkLabel = chainId === 11155111 ? t('wallet.sepolia') : isHardhatLocal ? t('onchain.wallet.hardhatLocal') : chainId ? t('wallet.chain', { id: chainId }) : t('wallet.unknownNetwork');
 
   const handleWalletClick = () => {
     if (address) {
@@ -65,8 +66,10 @@ export default function Navbar({ theme, toggleTheme }: NavbarProps) {
               <p className="wallet-error">{t(`wallet.errors.${error}`)}</p>
             ) : address ? (
               <>
-                <div className="wallet-panel-row"><span>{t('wallet.network')}</span><strong className={isSepolia ? '' : 'is-warning'}>{networkLabel}</strong></div>
-                {!isSepolia && <p className="wallet-warning">{t('wallet.wrongNetwork')}</p>}
+                <div className="wallet-panel-row"><span>{t('wallet.network')}</span><strong className={isHardhatLocal ? '' : 'is-warning'}>{networkLabel}</strong></div>
+                {!isHardhatLocal && <><p className="wallet-warning">{t('networkSwitch.wrongNetwork')}</p><button type="button" className="wallet-network-switch" onClick={() => void switchToHardhat()} disabled={isSwitchingNetwork}>{isSwitchingNetwork ? t('networkSwitch.switching') : t('networkSwitch.button')}</button></>}
+                {networkError && <p className="wallet-error wallet-network-error" role="alert">{t(`networkSwitch.errors.${networkError}`)}</p>}
+                {isHardhatLocal && <div className="wallet-panel-row wallet-balance"><span>{t('onchain.wallet.cfdBalance')}</span><strong>{isCfdBalanceLoading ? t('onchain.wallet.balanceLoading') : `${cfdBalance ?? '—'} CFD`}</strong></div>}
                 <p className="wallet-local-note">{t('wallet.localNote')}</p>
                 <button type="button" className="wallet-disconnect" onClick={() => { disconnectLocal(); setWalletOpen(false); }}>{t('wallet.disconnect')}</button>
               </>

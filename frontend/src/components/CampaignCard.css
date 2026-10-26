@@ -165,3 +165,83 @@
     transition: none;
   }
 }
+
+.onchain-card-badges { position: static; margin-bottom: 14px; }
+.campaign-onchain-badge, .campaign-frozen-badge { padding: 5px 9px; color: var(--accent-text); background: var(--accent); border-radius: 999px; font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.campaign-frozen-badge { color: #fff; background: #b45309; }
+.onchain-details { margin: 16px 0; display: grid; gap: 8px; }
+.onchain-details div { min-width: 0; }
+.onchain-details dt { color: var(--muted); font-size: 12px; font-weight: 700; }
+.onchain-details dd { margin: 3px 0 0; overflow-wrap: anywhere; color: var(--text); font-size: 13px; }
+.campaign-financials { margin: 16px 0 0; padding: 14px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; background: var(--background); border: 1px solid var(--border); border-radius: var(--radius-sm); }
+.campaign-financials div { min-width: 0; }
+.campaign-financials dt { color: var(--muted); font-size: 11px; font-weight: 700; }
+.campaign-financials dd { margin: 3px 0 0; color: var(--text-strong); font-size: 14px; font-weight: 750; overflow-wrap: anywhere; }
+.onchain-metadata-warning { color: #b45309 !important; font-size: 13px !important; }
+[data-theme='dark'] .onchain-metadata-warning { color: #ffbd73 !important; }
+.contribution-form { margin-top: 20px; padding-top: 18px; display: grid; gap: 9px; border-top: 1px solid var(--border); }
+.contribution-form > label { color: var(--text-strong); font-size: 14px; font-weight: 750; }
+.contribution-controls { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+.contribution-controls input { min-width: 0; min-height: 44px; padding: 0 12px; color: var(--text); background: var(--background); border: 1px solid var(--border); border-radius: var(--radius-sm); font: inherit; }
+.contribution-controls input:focus { outline: 3px solid color-mix(in srgb, var(--accent) 20%, transparent); border-color: var(--accent); }
+.contribution-controls input[aria-invalid='true'] { border-color: #b45309; }
+.contribution-controls button { min-height: 44px; padding: 0 14px; color: var(--accent-text); background: var(--accent); border: 0; border-radius: var(--radius-sm); cursor: pointer; font-weight: 750; }
+.contribution-controls button:disabled { cursor: not-allowed; opacity: .58; }
+.contribution-form small { color: var(--muted); font-size: 11px; }
+.contribution-note, .contribution-error, .contribution-closed { margin: 0; font-size: 12px !important; }
+.contribution-note, .contribution-error { color: #b45309 !important; }
+[data-theme='dark'] .contribution-note, [data-theme='dark'] .contribution-error { color: #ffbd73 !important; }
+.contribution-closed { margin-top: 18px; padding: 10px 12px; color: var(--muted); background: var(--background); border-radius: var(--radius-sm); }
+.contribution-hash { min-width: 0; margin: 0; display: grid; gap: 3px; }
+.contribution-hash span { color: var(--muted); font-size: 11px; }
+.contribution-hash code, .contribution-success code { overflow-wrap: anywhere; color: var(--text); font-size: 10px; }
+.contribution-success { padding: 11px; display: grid; gap: 5px; color: var(--text); background: color-mix(in srgb, var(--accent) 8%, var(--background)); border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border)); border-radius: var(--radius-sm); font-size: 12px; }
+.contribution-success strong { color: var(--text-strong); }
+.refund-panel { margin-top: 16px; padding: 16px; display: grid; gap: 10px; background: color-mix(in srgb, var(--accent) 6%, var(--background)); border: 1px solid color-mix(in srgb, var(--accent) 24%, var(--border)); border-radius: var(--radius-sm); }
+.refund-panel h4 { margin: 0; color: var(--text-strong); font-size: 15px; }
+.refund-summary { display: grid; gap: 4px; }
+.refund-summary p, .refund-error, .refund-hash { margin: 0; color: var(--muted); font-size: 12px !important; line-height: 1.5; }
+.refund-panel > button { min-height: 44px; padding: 0 14px; color: var(--accent-text); background: var(--accent); border: 0; border-radius: var(--radius-sm); cursor: pointer; font-weight: 750; }
+.refund-panel > button:disabled { cursor: not-allowed; opacity: .58; }
+.refund-panel > button:focus-visible { outline: 3px solid color-mix(in srgb, var(--accent) 25%, transparent); outline-offset: 2px; }
+.refund-error { color: #b45309 !important; font-weight: 650; }
+[data-theme='dark'] .refund-error { color: #ffbd73 !important; }
+.refund-hash, .refund-success { min-width: 0; display: grid; gap: 4px; }
+.refund-hash code, .refund-success code { overflow-wrap: anywhere; color: var(--text); font-size: 10px; }
+.refund-success { padding: 10px; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 12px; }
+.refund-success strong { color: var(--accent); }
+.campaign-cancellation { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); }
+.cancel-campaign-button { min-height: 42px; padding: 0 14px; color: #b42318; background: transparent; border: 1px solid color-mix(in srgb, #b42318 55%, var(--border)); border-radius: var(--radius-sm); cursor: pointer; font-weight: 750; }
+[data-theme='dark'] .cancel-campaign-button { color: #ff9b8f; border-color: color-mix(in srgb, #ff9b8f 55%, var(--border)); }
+.cancel-campaign-button:hover { background: color-mix(in srgb, #b42318 7%, transparent); }
+.cancel-campaign-button:focus-visible, .cancellation-confirmation button:focus-visible { outline: 3px solid color-mix(in srgb, #b42318 22%, transparent); outline-offset: 2px; }
+.cancellation-confirmation { padding: 14px; background: color-mix(in srgb, #b42318 6%, var(--background)); border: 1px solid color-mix(in srgb, #b42318 28%, var(--border)); border-radius: var(--radius-sm); }
+.cancellation-confirmation h4 { margin: 0; color: var(--text-strong); font-size: 15px; }
+.cancellation-confirmation p { margin: 7px 0 12px; color: var(--text); font-size: 12px; line-height: 1.55; }
+.cancellation-confirmation > div { display: flex; flex-wrap: wrap; gap: 8px; }
+.cancellation-confirmation button { min-height: 40px; padding: 0 12px; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; font-weight: 700; }
+.cancellation-confirmation .cancel-confirm-button { color: #fff; background: #b42318; border-color: #b42318; }
+.cancellation-confirmation button:disabled { cursor: not-allowed; opacity: .58; }
+.cancellation-error { margin: 9px 0 0; color: #b45309 !important; font-size: 12px !important; font-weight: 650; }
+[data-theme='dark'] .cancellation-error { color: #ffbd73 !important; }
+.cancellation-hash, .cancellation-success { min-width: 0; margin: 9px 0 0; display: grid; gap: 4px; }
+.cancellation-hash span { color: var(--muted); font-size: 11px; }
+.cancellation-hash code, .cancellation-success code { overflow-wrap: anywhere; color: var(--text); font-size: 10px; }
+.cancellation-success { padding: 11px; color: var(--text); background: color-mix(in srgb, var(--accent) 8%, var(--background)); border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border)); border-radius: var(--radius-sm); font-size: 12px; }
+.cancellation-success strong { color: var(--accent); }
+.withdrawal-panel { margin-top: 16px; padding: 16px; display: grid; gap: 10px; background: color-mix(in srgb, var(--accent) 6%, var(--background)); border: 1px solid color-mix(in srgb, var(--accent) 24%, var(--border)); border-radius: var(--radius-sm); }
+.withdrawal-panel h4 { margin: 0; color: var(--text-strong); font-size: 15px; }
+.withdrawal-panel dl { margin: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; }
+.withdrawal-panel dt { color: var(--muted); font-size: 11px; font-weight: 700; }
+.withdrawal-panel dd { margin: 3px 0 0; color: var(--text-strong); font-size: 13px; font-weight: 750; overflow-wrap: anywhere; }
+.withdrawal-panel > button { min-height: 44px; padding: 0 14px; color: var(--accent-text); background: var(--accent); border: 0; border-radius: var(--radius-sm); cursor: pointer; font-weight: 750; }
+.withdrawal-panel > button:disabled { cursor: not-allowed; opacity: .58; }
+.withdrawal-panel > button:focus-visible { outline: 3px solid color-mix(in srgb, var(--accent) 25%, transparent); outline-offset: 2px; }
+.withdrawal-error { margin: 0; color: #b45309 !important; font-size: 12px !important; font-weight: 650; }
+[data-theme='dark'] .withdrawal-error { color: #ffbd73 !important; }
+.withdrawal-hash, .withdrawal-success { min-width: 0; margin: 0; display: grid; gap: 4px; }
+.withdrawal-hash span { color: var(--muted); font-size: 11px; }
+.withdrawal-hash code, .withdrawal-success code { overflow-wrap: anywhere; color: var(--text); font-size: 10px; }
+.withdrawal-success { padding: 10px; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 12px; }
+.withdrawal-success strong { color: var(--accent); }
+@media (max-width: 430px) { .contribution-controls, .campaign-financials, .withdrawal-panel dl { grid-template-columns: 1fr; } }

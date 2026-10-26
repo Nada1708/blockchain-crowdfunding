@@ -1,7 +1,12 @@
-import { CloudUpload, ImagePlus } from 'lucide-react';
-import { isAddress } from 'ethers';
+import { CloudUpload, ImagePlus, WalletCards } from 'lucide-react';
+import { BrowserProvider, isAddress, parseEther } from 'ethers';
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router-dom';
+import { CONTRACT_ABIS } from '../abi';
+import { CHAIN_IDS, getContractAddress } from '../config/contracts';
+import { useWallet } from '../hooks/useWallet';
+import { createCampaignOnChain, isValidIpfsCid } from '../services/campaignTransactions';
 import { uploadCampaignToIpfs, type IpfsUploadProgress } from '../services/ipfs';
 import './CreateCampaign.css';
 
@@ -29,6 +34,7 @@ const maxImageSize = 5 * 1024 * 1024;
 
 export default function CreateCampaign() {
   const { t } = useTranslation();
+  const { address, chainId, isMetaMaskAvailable } = useWallet();
   const formRef = useRef<HTMLFormElement>(null);
   const imagePreviewUrlRef = useRef('');
   const [values, setValues] = useState<FormValues>(initialValues);
@@ -39,11 +45,19 @@ export default function CreateCampaign() {
   const [ipfsProgress, setIpfsProgress] = useState<IpfsUploadProgress | null>(null);
   const [ipfsResult, setIpfsResult] = useState<{ imageCid: string | null; metadataCid: string } | null>(null);
   const [ipfsError, setIpfsError] = useState('');
+  const [transactionState, setTransactionState] = useState<'idle' | 'signature' | 'pending' | 'success' | 'error'>('idle');
+  const [transactionHash, setTransactionHash] = useState('');
+  const [campaignId, setCampaignId] = useState<bigint | null>(null);
+  const [transactionError, setTransactionError] = useState('');
 
   const resetIpfsUpload = () => {
     setIpfsProgress(null);
     setIpfsResult(null);
     setIpfsError('');
+    setTransactionState('idle');
+    setTransactionHash('');
+    setCampaignId(null);
+    setTransactionError('');
   };
 
   useEffect(() => () => {
@@ -61,6 +75,7 @@ export default function CreateCampaign() {
   };
 
   const updateField = (field: keyof FormValues, value: string) => {
+    if (transactionState === 'signature' || transactionState === 'pending') return;
     setValues((current) => ({ ...current, [field]: value }));
     setErrors((current) => ({ ...current, [field]: undefined }));
     setShowPreview(false);
@@ -68,6 +83,7 @@ export default function CreateCampaign() {
   };
 
   const handleImageChange = (event: ChangeEvent<HTMLInputElement>) => {
+    if (transactionState === 'signature' || transactionState === 'pending') return;
     const selectedImage = event.target.files?.[0] ?? null;
     setShowPreview(false);
     resetIpfsUpload();
@@ -106,9 +122,16 @@ export default function CreateCampaign() {
     if (!values.title.trim()) nextErrors.title = 'createPage.errors.required';
     if (!values.description.trim()) nextErrors.description = 'createPage.errors.required';
     if (!values.goal.trim()) nextErrors.goal = 'createPage.errors.required';
-    else if (!Number.isFinite(Number(values.goal)) || Number(values.goal) <= 0) nextErrors.goal = 'createPage.errors.goal';
+    else {
+      try {
+        if (parseEther(values.goal) <= 0n) nextErrors.goal = 'createPage.errors.goal';
+      } catch {
+        nextErrors.goal = 'createPage.errors.goal';
+      }
+    }
     if (!values.duration.trim()) nextErrors.duration = 'createPage.errors.required';
     else if (!Number.isInteger(Number(values.duration)) || Number(values.duration) <= 0) nextErrors.duration = 'createPage.errors.duration';
+    else if (Number(values.duration) > 365) nextErrors.duration = 'createBlockchain.durationMax';
     if (!values.beneficiary.trim()) nextErrors.beneficiary = 'createPage.errors.required';
     else if (!isAddress(values.beneficiary.trim())) nextErrors.beneficiary = 'createPage.errors.address';
     return nextErrors;
@@ -116,6 +139,7 @@ export default function CreateCampaign() {
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (transactionState === 'signature' || transactionState === 'pending') return;
     const nextErrors = validate();
     setErrors(nextErrors);
 
@@ -131,7 +155,7 @@ export default function CreateCampaign() {
   };
 
   const handleIpfsUpload = async () => {
-    if (!showPreview || ipfsProgress?.phase === 'uploadingImage' || ipfsProgress?.phase === 'uploadingMetadata') return;
+    if (!showPreview || transactionState === 'signature' || transactionState === 'pending' || ipfsProgress?.phase === 'uploadingImage' || ipfsProgress?.phase === 'uploadingMetadata') return;
 
     setIpfsError('');
     setIpfsResult(null);
@@ -149,6 +173,54 @@ export default function CreateCampaign() {
   };
 
   const fieldError = (field: FieldName) => errors[field] ? t(errors[field]) : '';
+  const contractConfigured = Boolean(
+    getContractAddress(CHAIN_IDS.hardhat, 'Crowdfunding') &&
+      CONTRACT_ABIS.Crowdfunding,
+  );
+  const validCid = Boolean(ipfsResult && isValidIpfsCid(ipfsResult.metadataCid));
+  const isTransactionBusy = transactionState === 'signature' || transactionState === 'pending';
+  const canCreateOnChain = Boolean(
+    validCid && address && chainId === CHAIN_IDS.hardhat && contractConfigured && !isTransactionBusy && transactionState !== 'success',
+  );
+
+  const handleBlockchainCreation = async () => {
+    if (!canCreateOnChain || !ipfsResult || !window.ethereum) return;
+    setTransactionState('signature');
+    setTransactionError('');
+    setTransactionHash('');
+    setCampaignId(null);
+
+    try {
+      const result = await createCampaignOnChain(
+        new BrowserProvider(window.ethereum),
+        {
+          beneficiary: values.beneficiary.trim(),
+          goalEth: values.goal,
+          durationDays: Number(values.duration),
+          metadataCid: ipfsResult.metadataCid,
+        },
+        (hash) => {
+          setTransactionHash(hash);
+          setTransactionState('pending');
+        },
+      );
+      setTransactionHash(result.transactionHash);
+      setCampaignId(result.campaignId);
+      setTransactionState('success');
+    } catch (error) {
+      const code = (error as { code?: number | string }).code;
+      const message = error instanceof Error ? error.message : '';
+      const key = code === 4001 || code === 'ACTION_REJECTED'
+        ? 'rejected'
+        : message.includes('Wrong network')
+          ? 'wrongNetwork'
+          : message === 'INVALID_IPFS_CID'
+            ? 'invalidCid'
+            : 'failed';
+      setTransactionError(t(`createBlockchain.errors.${key}`));
+      setTransactionState('error');
+    }
+  };
 
   return (
     <section className="route-page create-page" aria-labelledby="create-page-title">
@@ -246,6 +318,29 @@ export default function CreateCampaign() {
                     {ipfsResult.imageCid && <p><span>{t('createPage.ipfs.imageCid')}</span><code>{ipfsResult.imageCid}</code></p>}
                     <p><span>{t('createPage.ipfs.metadataCid')}</span><code>{ipfsResult.metadataCid}</code></p>
                     <small>{t('createPage.ipfs.noBlockchain')}</small>
+                  </div>
+                )}
+                {ipfsResult && (
+                  <div className="blockchain-create-panel">
+                    <p>{t('createBlockchain.separation')}</p>
+                    <button className="blockchain-create-button" type="button" onClick={handleBlockchainCreation} disabled={!canCreateOnChain}>
+                      <WalletCards size={19} aria-hidden="true" />
+                      {transactionState === 'signature' ? t('createBlockchain.signature') : transactionState === 'pending' ? t('createBlockchain.pending') : t('createBlockchain.button')}
+                    </button>
+                    {!isMetaMaskAvailable && <p className="blockchain-requirement">{t('createBlockchain.metamaskRequired')}</p>}
+                    {isMetaMaskAvailable && !address && <p className="blockchain-requirement">{t('createBlockchain.walletRequired')}</p>}
+                    {address && chainId !== CHAIN_IDS.hardhat && <p className="blockchain-requirement">{t('createBlockchain.networkRequired')}</p>}
+                    {!contractConfigured && <p className="blockchain-requirement">{t('createBlockchain.contractMissing')}</p>}
+                    {!validCid && <p className="blockchain-requirement">{t('createBlockchain.invalidCid')}</p>}
+                    {transactionHash && transactionState !== 'success' && <p className="transaction-hash"><span>{t('createBlockchain.hash')}</span><code>{transactionHash}</code></p>}
+                    {transactionError && <p className="blockchain-error" role="alert">{transactionError}</p>}
+                    {transactionState === 'success' && campaignId !== null && (
+                      <div className="blockchain-success" role="status">
+                        <strong>{t('createBlockchain.success', { id: campaignId.toString() })}</strong>
+                        <p className="transaction-hash"><span>{t('createBlockchain.hash')}</span><code>{transactionHash}</code></p>
+                        <Link to="/campaigns">{t('createBlockchain.viewCampaigns')}</Link>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

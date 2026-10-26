@@ -1,18 +1,34 @@
 import {
   BrowserProvider,
   Contract,
+  JsonRpcProvider,
   type Eip1193Provider,
   type Provider,
   type Signer,
 } from 'ethers'
 import { CONTRACT_ABIS } from '../abi'
 import {
+  CHAIN_IDS,
   NETWORK_NAMES,
   getContractAddress,
   isSupportedChainId,
   type FundoraContractName,
   type SupportedChainId,
 } from '../config/contracts'
+
+const hardhatRpcUrl =
+  import.meta.env.VITE_HARDHAT_RPC_URL?.trim() || 'http://127.0.0.1:8545'
+
+let hardhatProvider: JsonRpcProvider | undefined
+
+export function getHardhatReadProvider() {
+  hardhatProvider ??= new JsonRpcProvider(
+    hardhatRpcUrl,
+    CHAIN_IDS.hardhat,
+    { staticNetwork: true },
+  )
+  return hardhatProvider
+}
 
 export class BlockchainConfigurationError extends Error {
   override name = 'BlockchainConfigurationError'

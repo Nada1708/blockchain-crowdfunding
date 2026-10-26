@@ -145,3 +145,18 @@ main p {
 .route-page-grid {
   margin-top: 42px;
 }
+
+.onchain-section { margin-top: 48px; }
+.onchain-section-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; }
+.onchain-section-heading h2, .demo-section-heading h2 { margin: 0; color: var(--text-strong); font-size: clamp(28px, 3vw, 38px); }
+.onchain-section-heading > span { padding: 7px 10px; color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--surface)); border: 1px solid color-mix(in srgb, var(--accent) 32%, var(--border)); border-radius: 999px; font-size: 12px; font-weight: 750; }
+.onchain-state { min-height: 120px; margin-top: 18px; padding: 24px; display: grid; place-items: center; color: var(--muted); background: var(--surface); border: 1px dashed var(--border); border-radius: var(--radius-md); text-align: center; }
+.onchain-state p { margin: 0; }
+.onchain-state button { min-height: 40px; margin-top: 12px; padding: 0 16px; color: var(--accent-text); background: var(--accent); border: 0; border-radius: var(--radius-sm); cursor: pointer; font-weight: 700; }
+.onchain-state-error { color: #b45309; }
+[data-theme='dark'] .onchain-state-error { color: #ffbd73; }
+.demo-section-heading { margin-top: 52px; }
+
+@media (max-width: 560px) {
+  .onchain-section-heading { align-items: flex-start; flex-direction: column; }
+}

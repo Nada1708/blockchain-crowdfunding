@@ -47,6 +47,19 @@
 .ipfs-result p { margin: 0; display: grid; gap: 3px; color: var(--muted); font-size: 12px; }
 .ipfs-result code { color: var(--text); font-size: 11px; overflow-wrap: anywhere; }
 .ipfs-result small { color: var(--muted); line-height: 1.45; }
+.blockchain-create-panel { margin-top: 4px; padding-top: 16px; display: grid; gap: 10px; border-top: 1px solid var(--border); }
+.blockchain-create-panel > p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
+.blockchain-create-button { min-height: 48px; padding: 0 18px; display: inline-flex; align-items: center; justify-content: center; gap: 9px; color: var(--accent-text); background: var(--accent); border: 0; border-radius: var(--radius-sm); cursor: pointer; font: inherit; font-weight: 750; }
+.blockchain-create-button:disabled { cursor: not-allowed; opacity: .55; }
+.blockchain-create-button:focus-visible { outline: 3px solid color-mix(in srgb, var(--accent) 35%, transparent); outline-offset: 3px; }
+.blockchain-requirement, .blockchain-error { color: #b45309 !important; font-weight: 650; }
+[data-theme='dark'] .blockchain-requirement, [data-theme='dark'] .blockchain-error { color: #ffbd73 !important; }
+.transaction-hash { min-width: 0; display: grid; gap: 4px; }
+.transaction-hash span { color: var(--muted); font-size: 12px; }
+.transaction-hash code { overflow-wrap: anywhere; color: var(--text); font-size: 11px; }
+.blockchain-success { padding: 14px; display: grid; gap: 10px; color: var(--text); background: color-mix(in srgb, var(--accent) 8%, var(--background)); border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border)); border-radius: var(--radius-sm); }
+.blockchain-success strong { color: var(--text-strong); }
+.blockchain-success a { width: fit-content; color: var(--accent); font-weight: 750; }
 .preview-placeholder { min-height: 370px; display: grid; place-content: center; justify-items: center; color: var(--accent); text-align: center; }
 .preview-placeholder h2 { margin-bottom: 4px; }
 .preview-placeholder p { max-width: 280px; margin: 0; font-size: 14px; }

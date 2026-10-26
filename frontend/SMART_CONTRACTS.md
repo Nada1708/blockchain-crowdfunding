@@ -15,7 +15,9 @@ and RPC secrets must never be added to a Vite environment variable.
 4. Add the deployed addresses to `.env.local` for the deployment network.
 5. Run `npm.cmd run lint` and `npm.cmd run build` from `frontend/`.
 
-At present, this repository contains only the generated `Counter` artifact. The
-ABIs for `CFDToken`, `Crowdfunding`, and `CFDGovernance` therefore remain explicitly
-unset. Contract factory helpers will report a configuration error until the real
-artifacts and addresses are supplied.
+This repository includes ABI modules generated from the real `CFDToken`,
+`Crowdfunding`, and `CFDGovernance` Hardhat artifacts. The helper script
+`../scripts/export-frontend-abis.mjs` refreshes those modules after compilation;
+the generated ABI must not be edited by inventing functions. Contract factory
+helpers still report a configuration error when the address for the selected
+network is absent or invalid.

@@ -10,6 +10,9 @@
 # Hardhat Build Artifacts
 /artifacts
 
+# Local Hardhat Ignition journals and generated deployment metadata
+/ignition/deployments/fundora-local/
+
 # Hardhat compilation (v2) support directory
 /cache
 
@@ -21,6 +24,12 @@
 **/.env.*
 !**/.env.example
 
+# Private key and certificate files
+*.pem
+*.key
+*.p12
+*.pfx
+
 # Hardhat coverage reports
 /coverage
 
@@ -29,6 +38,21 @@
 
 # Snapshot cheatcodes output
 /snapshots
+
+# Logs and temporary files
+/logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+/tmp/
+*.tmp
+*.temp
+*.bak
+*.orig
+*~
 
 node_modules
 artifacts
