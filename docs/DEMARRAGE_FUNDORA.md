@@ -58,6 +58,12 @@ npx.cmd hardhat ignition deploy ignition/modules/Fundora.ts --network localhost 
 node scripts/verify-local-deployment.mjs
 ```
 
+Le déploiement configure les trois premiers comptes Hardhat comme signataires
+du coffre 2-sur-3. Il conserve les rôles opérationnels entre contrats, transfère
+les rôles admin/pauser au coffre, puis révoque les privilèges temporaires du
+compte de déploiement. Toute action administrative ultérieure doit être soumise
+au coffre et confirmée par deux signataires distincts.
+
 Reporter les trois adresses utilisées par le frontend dans
 `frontend/.env.local`. Les ABI finales sont versionnées. Si les contrats ont
 changé, les régénérer avec :
@@ -130,8 +136,8 @@ build.
 - Une blockchain Hardhat fraîche contient zéro campagne et zéro proposition.
 - Les sessions SIWE en mémoire sont perdues au redémarrage d'Express.
 - Les uploads IPFS exigent un JWT Pinata valide dans le fichier serveur local.
-- Le multisig 2-sur-3 est déployé et testé ; les rôles administrateur et pauser
-  restent attribués au déployeur local.
+- Le multisig 2-sur-3 détient les rôles administrateur et pauser ; le déployeur
+  local n'a plus ces privilèges après un déploiement terminé.
 - Fundora est un prototype académique, pas un déploiement de production.
 
 ## 7. Dépannage rapide

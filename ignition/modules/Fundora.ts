@@ -5,8 +5,9 @@ export default buildModule("FundoraModule", (m) => {
   const secondSigner = m.getAccount(1);
   const thirdSigner = m.getAccount(2);
 
-  // The multisig is deployed for the future administration flow. The local
-  // deployer remains the bootstrap admin so it can wire the required roles.
+  // The deployer is a bootstrap administrator only. Ignition wires the
+  // operational roles, hands administration to the 2-of-3 multisig, then
+  // removes every bootstrap privilege before completing the deployment.
   const multiSigTreasury = m.contract("MultiSigTreasury", [
     [admin, secondSigner, thirdSigner],
   ]);
@@ -32,18 +33,117 @@ export default buildModule("FundoraModule", (m) => {
     0,
     { id: "ReadGovernanceRole" },
   );
+  const tokenAdminRole = m.staticCall(cfdToken, "DEFAULT_ADMIN_ROLE", [], 0, {
+    id: "ReadTokenAdminRole",
+  });
+  const crowdfundingAdminRole = m.staticCall(
+    crowdfunding,
+    "DEFAULT_ADMIN_ROLE",
+    [],
+    0,
+    { id: "ReadCrowdfundingAdminRole" },
+  );
+  const crowdfundingPauserRole = m.staticCall(
+    crowdfunding,
+    "PAUSER_ROLE",
+    [],
+    0,
+    { id: "ReadCrowdfundingPauserRole" },
+  );
+  const governanceAdminRole = m.staticCall(
+    cfdGovernance,
+    "DEFAULT_ADMIN_ROLE",
+    [],
+    0,
+    { id: "ReadGovernanceAdminRole" },
+  );
+  const governancePauserRole = m.staticCall(
+    cfdGovernance,
+    "PAUSER_ROLE",
+    [],
+    0,
+    { id: "ReadGovernancePauserRole" },
+  );
 
-  m.call(cfdToken, "grantRole", [minterRole, crowdfunding], {
+  const grantMinter = m.call(cfdToken, "grantRole", [minterRole, crowdfunding], {
     id: "GrantCrowdfundingMinterRole",
     from: admin,
   });
-  m.call(cfdToken, "grantRole", [burnerRole, crowdfunding], {
+  const grantBurner = m.call(cfdToken, "grantRole", [burnerRole, crowdfunding], {
     id: "GrantCrowdfundingBurnerRole",
     from: admin,
   });
-  m.call(crowdfunding, "grantRole", [governanceRole, cfdGovernance], {
+  const grantGovernance = m.call(crowdfunding, "grantRole", [governanceRole, cfdGovernance], {
     id: "GrantDaoGovernanceRole",
     from: admin,
+  });
+
+  const grantTokenAdmin = m.call(
+    cfdToken,
+    "grantRole",
+    [tokenAdminRole, multiSigTreasury],
+    { id: "GrantMultisigTokenAdmin", from: admin },
+  );
+  const grantCrowdfundingAdmin = m.call(
+    crowdfunding,
+    "grantRole",
+    [crowdfundingAdminRole, multiSigTreasury],
+    { id: "GrantMultisigCrowdfundingAdmin", from: admin },
+  );
+  const grantCrowdfundingPauser = m.call(
+    crowdfunding,
+    "grantRole",
+    [crowdfundingPauserRole, multiSigTreasury],
+    { id: "GrantMultisigCrowdfundingPauser", from: admin },
+  );
+  const grantGovernanceAdmin = m.call(
+    cfdGovernance,
+    "grantRole",
+    [governanceAdminRole, multiSigTreasury],
+    { id: "GrantMultisigGovernanceAdmin", from: admin },
+  );
+  const grantGovernancePauser = m.call(
+    cfdGovernance,
+    "grantRole",
+    [governancePauserRole, multiSigTreasury],
+    { id: "GrantMultisigGovernancePauser", from: admin },
+  );
+
+  const handoffReady = [
+    grantMinter,
+    grantBurner,
+    grantGovernance,
+    grantTokenAdmin,
+    grantCrowdfundingAdmin,
+    grantCrowdfundingPauser,
+    grantGovernanceAdmin,
+    grantGovernancePauser,
+  ];
+
+  m.call(cfdToken, "revokeRole", [tokenAdminRole, admin], {
+    id: "RevokeBootstrapTokenAdmin",
+    from: admin,
+    after: handoffReady,
+  });
+  const revokeCrowdfundingPauser = m.call(crowdfunding, "revokeRole", [crowdfundingPauserRole, admin], {
+    id: "RevokeBootstrapCrowdfundingPauser",
+    from: admin,
+    after: handoffReady,
+  });
+  m.call(crowdfunding, "revokeRole", [crowdfundingAdminRole, admin], {
+    id: "RevokeBootstrapCrowdfundingAdmin",
+    from: admin,
+    after: [...handoffReady, revokeCrowdfundingPauser],
+  });
+  const revokeGovernancePauser = m.call(cfdGovernance, "revokeRole", [governancePauserRole, admin], {
+    id: "RevokeBootstrapGovernancePauser",
+    from: admin,
+    after: handoffReady,
+  });
+  m.call(cfdGovernance, "revokeRole", [governanceAdminRole, admin], {
+    id: "RevokeBootstrapGovernanceAdmin",
+    from: admin,
+    after: [...handoffReady, revokeGovernancePauser],
   });
 
   return { cfdToken, crowdfunding, cfdGovernance, multiSigTreasury };

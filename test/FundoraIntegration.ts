@@ -108,4 +108,112 @@ describe("Fundora real-contract integration", function () {
     await governance.execute(2n);
     expect((await crowdfunding.getCampaign(1n)).frozen).to.equal(false);
   });
+
+  it("hands administration to the 2-of-3 multisig without an admin lock", async function () {
+    const [bootstrap, secondSigner, thirdSigner, outsider] =
+      await ethers.getSigners();
+    const multisig = await ethers.deployContract("MultiSigTreasury", [[
+      bootstrap.address,
+      secondSigner.address,
+      thirdSigner.address,
+    ]]);
+    const token = await ethers.deployContract("CFDToken", [bootstrap.address]);
+    const crowdfunding = await ethers.deployContract("Crowdfunding", [
+      await token.getAddress(),
+      bootstrap.address,
+    ]);
+    const governance = await ethers.deployContract("CFDGovernance", [
+      await token.getAddress(),
+      await crowdfunding.getAddress(),
+      bootstrap.address,
+    ]);
+
+    const multisigAddress = await multisig.getAddress();
+    const adminRole = await token.DEFAULT_ADMIN_ROLE();
+    const crowdfundingPauserRole = await crowdfunding.PAUSER_ROLE();
+    const governancePauserRole = await governance.PAUSER_ROLE();
+
+    await token.grantRole(await token.MINTER_ROLE(), await crowdfunding.getAddress());
+    await token.grantRole(await token.BURNER_ROLE(), await crowdfunding.getAddress());
+    await crowdfunding.grantRole(
+      await crowdfunding.GOVERNANCE_ROLE(),
+      await governance.getAddress(),
+    );
+    await token.grantRole(adminRole, multisigAddress);
+    await crowdfunding.grantRole(adminRole, multisigAddress);
+    await crowdfunding.grantRole(crowdfundingPauserRole, multisigAddress);
+    await governance.grantRole(adminRole, multisigAddress);
+    await governance.grantRole(governancePauserRole, multisigAddress);
+
+    await token.revokeRole(adminRole, bootstrap.address);
+    await crowdfunding.revokeRole(crowdfundingPauserRole, bootstrap.address);
+    await crowdfunding.revokeRole(adminRole, bootstrap.address);
+    await governance.revokeRole(governancePauserRole, bootstrap.address);
+    await governance.revokeRole(adminRole, bootstrap.address);
+
+    expect(await token.hasRole(adminRole, multisigAddress)).to.equal(true);
+    expect(await crowdfunding.hasRole(adminRole, multisigAddress)).to.equal(true);
+    expect(await governance.hasRole(adminRole, multisigAddress)).to.equal(true);
+    expect(
+      await token.hasRole(await token.MINTER_ROLE(), await crowdfunding.getAddress()),
+    ).to.equal(true);
+    expect(
+      await token.hasRole(await token.BURNER_ROLE(), await crowdfunding.getAddress()),
+    ).to.equal(true);
+    expect(
+      await crowdfunding.hasRole(
+        await crowdfunding.GOVERNANCE_ROLE(),
+        await governance.getAddress(),
+      ),
+    ).to.equal(true);
+    expect(await token.hasRole(adminRole, bootstrap.address)).to.equal(false);
+    expect(await crowdfunding.hasRole(crowdfundingPauserRole, bootstrap.address)).to.equal(false);
+    expect(await governance.hasRole(governancePauserRole, bootstrap.address)).to.equal(false);
+
+    const pauseCrowdfunding = crowdfunding.interface.encodeFunctionData("pause");
+    await multisig.connect(bootstrap).submit(await crowdfunding.getAddress(), 0n, pauseCrowdfunding);
+
+    await expect(multisig.connect(bootstrap).execute(0n))
+      .to.be.revertedWithCustomError(multisig, "NotEnoughConfirmations");
+    await expect(multisig.connect(outsider).confirm(0n))
+      .to.be.revertedWithCustomError(multisig, "NotSigner");
+
+    await multisig.connect(secondSigner).confirm(0n);
+    await multisig.connect(thirdSigner).execute(0n);
+    expect(await crowdfunding.paused()).to.equal(true);
+
+    await expect(crowdfunding.connect(bootstrap).unpause())
+      .to.be.revertedWithCustomError(crowdfunding, "AccessControlUnauthorizedAccount");
+    await expect(token.connect(bootstrap).grantRole(await token.MINTER_ROLE(), outsider.address))
+      .to.be.revertedWithCustomError(token, "AccessControlUnauthorizedAccount");
+
+    const unpauseCrowdfunding = crowdfunding.interface.encodeFunctionData("unpause");
+    await multisig.connect(bootstrap).submit(await crowdfunding.getAddress(), 0n, unpauseCrowdfunding);
+    await multisig.connect(secondSigner).confirm(1n);
+    await multisig.connect(secondSigner).execute(1n);
+    expect(await crowdfunding.paused()).to.equal(false);
+
+    const pauseGovernance = governance.interface.encodeFunctionData("pause");
+    await multisig.connect(bootstrap).submit(await governance.getAddress(), 0n, pauseGovernance);
+    await multisig.connect(thirdSigner).confirm(2n);
+    await multisig.connect(bootstrap).execute(2n);
+    expect(await governance.paused()).to.equal(true);
+
+    await expect(governance.connect(bootstrap).unpause())
+      .to.be.revertedWithCustomError(governance, "AccessControlUnauthorizedAccount");
+    const unpauseGovernance = governance.interface.encodeFunctionData("unpause");
+    await multisig.connect(bootstrap).submit(await governance.getAddress(), 0n, unpauseGovernance);
+    await multisig.connect(secondSigner).confirm(3n);
+    await multisig.connect(thirdSigner).execute(3n);
+    expect(await governance.paused()).to.equal(false);
+
+    const grantMinter = token.interface.encodeFunctionData("grantRole", [
+      await token.MINTER_ROLE(),
+      outsider.address,
+    ]);
+    await multisig.connect(bootstrap).submit(await token.getAddress(), 0n, grantMinter);
+    await multisig.connect(secondSigner).confirm(4n);
+    await multisig.connect(thirdSigner).execute(4n);
+    expect(await token.hasRole(await token.MINTER_ROLE(), outsider.address)).to.equal(true);
+  });
 });

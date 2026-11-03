@@ -17,6 +17,13 @@ In a second terminal, deploy the contracts and assign the application roles:
 npx.cmd hardhat ignition deploy ignition/modules/Fundora.ts --network localhost --deployment-id fundora-local
 ```
 
+Ignition uses account 0 only for bootstrap wiring. It preserves the
+Crowdfunding minter/burner and CFDGovernance governance roles, grants the
+admin/pauser roles to MultiSigTreasury, validates the complete sequence, and
+then revokes account 0's bootstrap privileges. Administrative actions must
+thereafter be submitted to the multisig and confirmed by two of its first three
+Hardhat signers.
+
 The node stores its state only while its process is running. After restarting a
 fresh node, reset the matching local Ignition journal before redeploying:
 
@@ -24,8 +31,9 @@ fresh node, reset the matching local Ignition journal before redeploying:
 npx.cmd hardhat ignition deploy ignition/modules/Fundora.ts --network localhost --deployment-id fundora-local --reset
 ```
 
-Verify the deployed Freeze/Unfreeze bytecode, contract links, roles, chain ID, and multisig
-threshold:
+Verify the deployed Freeze/Unfreeze bytecode, contract links, operational
+roles, multisig admin/pauser ownership, bootstrap revocation, chain ID, and
+multisig threshold:
 
 ```powershell
 node scripts/verify-local-deployment.mjs

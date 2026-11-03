@@ -33,14 +33,14 @@ DEMO content visibly separate from data read from the deployed contracts.
 - **CFDGovernance** creates Freeze, Unfreeze, and EarlyRelease proposals, records
   snapshot-weighted CFD votes, checks quorum, and executes adopted decisions on
   Crowdfunding.
-- **MultiSigTreasury** is a two-of-three signer treasury for submitting,
-  confirming, revoking, and executing transactions. It is deployed as part of
-  the Fundora stack but is not used as an automatic frontend transaction path.
+- **MultiSigTreasury** is the two-of-three administrator for CFDToken,
+  Crowdfunding, and CFDGovernance. Administrative calls and emergency
+  pause/unpause operations require two distinct signer approvals.
 
-The Ignition module grants Crowdfunding the CFD minter and burner roles and
-grants CFDGovernance the Crowdfunding governance role. The local deployer keeps
-the bootstrap admin/pauser roles; MultiSigTreasury is a tested standalone 2-of-3
-treasury and is not yet the administrator of the application contracts.
+The Ignition module grants Crowdfunding the CFD minter and burner roles, grants
+CFDGovernance the Crowdfunding governance role, transfers every admin/pauser
+role to MultiSigTreasury, and finally revokes the deployer's bootstrap roles.
+The operational contract-to-contract roles remain unchanged.
 
 ## Repository layout
 
@@ -151,8 +151,9 @@ npm.cmd --prefix frontend run server
 npm.cmd --prefix frontend run dev
 ```
 
-The first three standard Hardhat accounts are the MultiSigTreasury signers;
-account zero is also the local bootstrap admin/pauser. Import only accounts intended for local
+The first three standard Hardhat accounts are the MultiSigTreasury signers.
+Account zero is only a temporary deployment administrator and has no admin or
+pauser role after Ignition completes. Import only accounts intended for local
 testing into MetaMask; never publish or reuse their development keys.
 
 Frontend setup, routes, wallet behavior, and implemented transaction flows are
