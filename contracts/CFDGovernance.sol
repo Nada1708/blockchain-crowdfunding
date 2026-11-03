@@ -10,7 +10,8 @@ import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 /// @notice Les détenteurs de CFD votent pour geler une campagne ou débloquer des fonds en avance
 contract CFDGovernance is AccessControl, Pausable {
     // ───────── 1. Types ─────────
-    enum ProposalType { Freeze, EarlyRelease }
+    // Append-only: existing values remain Freeze=0 and EarlyRelease=1.
+    enum ProposalType { Freeze, EarlyRelease, Unfreeze }
     enum ProposalState { Active, Defeated, Succeeded, Executed }
 
     // ───────── 2. La fiche d'une proposition ─────────
@@ -44,6 +45,7 @@ contract CFDGovernance is AccessControl, Pausable {
     // ───────── 6. Erreurs ─────────
     error ZeroAddress();
     error CampaignNotActive();
+    error CampaignNotFrozen();
     error NotBeneficiary();
     error BelowProposalThreshold();
     error InvalidAmount();
@@ -93,16 +95,20 @@ contract CFDGovernance is AccessControl, Pausable {
         returns (uint256 id)
     {
         // ── A. VÉRIFICATIONS ──
-        if (!crowdfunding.isActive(campaignId)) revert CampaignNotActive();
-
         uint48 snapshot = token.clock() - 1; // la PHOTO : le moment juste avant
 
         if (pType == ProposalType.EarlyRelease) {
+            if (!crowdfunding.isActive(campaignId)) revert CampaignNotActive();
             // Seul le bénéficiaire peut demander son argent en avance
             if (msg.sender != crowdfunding.beneficiaryOf(campaignId)) revert NotBeneficiary();
             if (amount == 0) revert InvalidAmount();
         } else {
-            // Gel : il faut au moins 100 CFD sur la photo (anti-spam)
+            if (pType == ProposalType.Freeze) {
+                if (!crowdfunding.isActive(campaignId)) revert CampaignNotActive();
+            } else if (!crowdfunding.isFrozen(campaignId)) {
+                revert CampaignNotFrozen();
+            }
+            // Gel/dégel : il faut au moins 100 CFD sur la photo (anti-spam)
             if (token.getPastVotes(msg.sender, snapshot) < PROPOSAL_THRESHOLD) {
                 revert BelowProposalThreshold();
             }
@@ -183,8 +189,10 @@ contract CFDGovernance is AccessControl, Pausable {
         // ── C. INTERACTIONS : appel au contrat du Membre 1 ──
         if (p.pType == ProposalType.Freeze) {
             crowdfunding.freezeCampaign(p.campaignId);
-        } else {
+        } else if (p.pType == ProposalType.EarlyRelease) {
             crowdfunding.approveEarlyRelease(p.campaignId, p.amount);
+        } else {
+            crowdfunding.unfreezeCampaign(p.campaignId);
         }
     }
 }

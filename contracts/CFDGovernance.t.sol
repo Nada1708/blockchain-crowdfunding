@@ -75,6 +75,49 @@ contract CFDGovernanceTest is Test {
         assertEq(cf.released(1), 2e18);
     }
 
+    function test_UnfreezeAdoptedAndExecuted() public {
+        uint256 freezeId = _proposeFreeze();
+        vm.prank(ali); dao.castVote(freezeId, true);
+        vm.warp(block.timestamp + 48 hours);
+        dao.execute(freezeId);
+        assertTrue(cf.frozen(1));
+
+        vm.prank(ali);
+        uint256 unfreezeId = dao.propose(CFDGovernance.ProposalType.Unfreeze, 1, 0);
+        vm.prank(ali); dao.castVote(unfreezeId, true);
+        vm.warp(block.timestamp + 48 hours);
+        dao.execute(unfreezeId);
+        assertFalse(cf.frozen(1));
+    }
+
+    function test_RevertWhen_UnfreezeCampaignIsNotFrozen() public {
+        vm.prank(ali);
+        vm.expectRevert(CFDGovernance.CampaignNotFrozen.selector);
+        dao.propose(CFDGovernance.ProposalType.Unfreeze, 1, 0);
+    }
+
+    function test_RevertWhen_UnfreezeProposerBelowThreshold() public {
+        uint256 freezeId = _proposeFreeze();
+        vm.prank(ali); dao.castVote(freezeId, true);
+        vm.warp(block.timestamp + 48 hours);
+        dao.execute(freezeId);
+
+        vm.prank(attacker);
+        vm.expectRevert(CFDGovernance.BelowProposalThreshold.selector);
+        dao.propose(CFDGovernance.ProposalType.Unfreeze, 1, 0);
+    }
+
+    function test_RevertWhen_UnfreezeAmountIsNotZero() public {
+        uint256 freezeId = _proposeFreeze();
+        vm.prank(ali); dao.castVote(freezeId, true);
+        vm.warp(block.timestamp + 48 hours);
+        dao.execute(freezeId);
+
+        vm.prank(ali);
+        vm.expectRevert(CFDGovernance.InvalidAmount.selector);
+        dao.propose(CFDGovernance.ProposalType.Unfreeze, 1, 1);
+    }
+
     // ═════ 2. ATTAQUES SUR LE VOTE ═════
 
     /// Vote éclair : jetons obtenus APRÈS la photo = 0 voix

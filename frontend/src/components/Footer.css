@@ -1,0 +1,143 @@
+.fundora-footer {
+  margin-top: clamp(72px, 9vw, 120px);
+  padding: 64px 0 28px;
+  color: var(--text);
+  background: var(--navbar-bg);
+  border-top: 1px solid var(--border);
+}
+
+.fundora-footer-content,
+.fundora-footer-bottom {
+  width: min(calc(100% - 48px), var(--container));
+  max-width: var(--container);
+  margin: 0 auto;
+}
+
+.fundora-footer-content {
+  display: grid;
+  grid-template-columns: minmax(280px, 1.5fr) minmax(150px, 0.6fr) minmax(190px, 0.7fr);
+  gap: clamp(40px, 8vw, 110px);
+}
+
+.fundora-footer-brand {
+  width: fit-content;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text);
+  font-size: 24px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.fundora-footer-logo {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  color: var(--accent-text);
+  background: var(--accent);
+  border-radius: 11px;
+  font-size: 20px;
+}
+
+.fundora-footer-dot {
+  color: var(--accent);
+}
+
+.fundora-footer-brand-block > p {
+  max-width: 440px;
+  margin: 18px 0 0;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.7;
+}
+
+.fundora-footer h2 {
+  margin: 5px 0 18px;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.fundora-footer-nav ul {
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+  list-style: none;
+}
+
+.fundora-footer-nav a {
+  color: var(--muted);
+  font-size: 15px;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.fundora-footer-nav a:hover {
+  color: var(--accent);
+}
+
+.fundora-footer-nav a.active {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.fundora-footer-network p {
+  margin: 0 0 8px;
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.fundora-footer-network span {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.fundora-footer-bottom {
+  margin-top: 52px;
+  padding-top: 24px;
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  border-top: 1px solid var(--border);
+}
+
+.fundora-footer-bottom p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+@media (max-width: 720px) {
+  .fundora-footer-content {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .fundora-footer-brand-block {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 480px) {
+  .fundora-footer {
+    padding-top: 48px;
+  }
+
+  .fundora-footer-content {
+    grid-template-columns: 1fr;
+  }
+
+  .fundora-footer-brand-block {
+    grid-column: auto;
+  }
+
+  .fundora-footer-bottom {
+    flex-direction: column;
+  }
+}

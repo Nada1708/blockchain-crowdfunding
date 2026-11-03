@@ -19,11 +19,17 @@ contract MockCrowdfunding is ICrowdfunding {
     }
 
     function isActive(uint256 id) external view returns (bool) { return active[id]; }
+    function isFrozen(uint256 id) external view returns (bool) { return frozen[id]; }
     function beneficiaryOf(uint256 id) external view returns (address) { return beneficiary[id]; }
 
     function freezeCampaign(uint256 id) external {
         require(msg.sender == governance, "only DAO");
         frozen[id] = true;
+    }
+
+    function unfreezeCampaign(uint256 id) external {
+        require(msg.sender == governance, "only DAO");
+        frozen[id] = false;
     }
 
     function approveEarlyRelease(uint256 id, uint256 amount) external {
