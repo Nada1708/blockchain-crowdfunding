@@ -36,7 +36,7 @@ export default function OnChainProposalCard({ proposal, onGovernanceChanged }: {
   const quorumProgress = Math.min(percentage(total, proposal.quorum), 100)
   const forProgress = percentage(proposal.forVotes, total)
   const stateKey = proposal.state.toLowerCase()
-  const typeKey = proposal.type === 'Freeze' ? 'freeze' : 'earlyRelease'
+  const typeKey = proposal.type === 'Freeze' ? 'freeze' : proposal.type === 'Unfreeze' ? 'unfreeze' : 'earlyRelease'
   const isBusy = voteState === 'signature' || voteState === 'pending'
   const isExecuting = executionState === 'signature' || executionState === 'pending'
   const isCorrectNetwork = chainId === CHAIN_IDS.hardhat
@@ -136,7 +136,7 @@ export default function OnChainProposalCard({ proposal, onGovernanceChanged }: {
       </div>
       <p className="proposal-campaign">{t('governance.card.campaign')}: <strong>#{proposal.campaignId}</strong></p>
       <h2>{t('onchain.proposalTitle', { id: proposal.id })}</h2>
-      <p className="proposal-description">{proposal.type === 'EarlyRelease' ? t('onchain.releaseAmount', { amount: proposal.amountEth }) : t('onchain.freezeDescription')}</p>
+      <p className="proposal-description">{proposal.type === 'EarlyRelease' ? t('onchain.releaseAmount', { amount: proposal.amountEth }) : t(proposal.type === 'Unfreeze' ? 'onchain.unfreezeDescription' : 'onchain.freezeDescription')}</p>
       <p className="proposal-period"><CalendarDays size={16} aria-hidden="true" />{t('onchain.voteEnds', { date: new Date(proposal.voteEnd * 1000).toLocaleString() })}</p>
       <p className="proposal-snapshot">{t('onchain.snapshot', { block: proposal.snapshot })}</p>
       <div className="proposal-votes">

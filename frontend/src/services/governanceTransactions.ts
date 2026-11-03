@@ -1,11 +1,12 @@
 import { type BrowserProvider, ZeroAddress, getAddress, parseEther } from 'ethers'
 import { CHAIN_IDS } from '../config/contracts'
 import { getReadContract, getWriteContract } from './blockchain'
-
-export type ProposalKind = 'Freeze' | 'EarlyRelease'
+import { campaignAcceptsProposal, proposalKindValue, requiresProposalThreshold, type ProposalKind } from './governance-proposal'
+export type { ProposalKind } from './governance-proposal'
 
 export type ProposalEligibility = {
   active: boolean
+  frozen: boolean
   beneficiary: string
   currentVotingPower: bigint
   historicalVotingPower: bigint
@@ -33,8 +34,9 @@ export async function readProposalEligibility(
     getReadContract('Crowdfunding', provider),
     getReadContract('CFDGovernance', provider),
   ])
-  const [active, beneficiary, clock, threshold, currentVotingPower] = await Promise.all([
+  const [active, campaign, beneficiary, clock, threshold, currentVotingPower] = await Promise.all([
     crowdfunding.isActive(campaignId),
+    crowdfunding.getCampaign(campaignId),
     crowdfunding.beneficiaryOf(campaignId),
     token.clock(),
     governance.PROPOSAL_THRESHOLD(),
@@ -47,6 +49,7 @@ export async function readProposalEligibility(
 
   return {
     active: Boolean(active),
+    frozen: Boolean(campaign.frozen),
     beneficiary: String(beneficiary),
     currentVotingPower: BigInt(currentVotingPower),
     historicalVotingPower,
@@ -72,10 +75,12 @@ export async function createGovernanceProposal(
   onSubmitted: (hash: string) => void,
 ): Promise<ProposalCreationResult> {
   const eligibility = await readProposalEligibility(provider, account, campaignId)
-  if (!eligibility.active) throw new Error('CAMPAIGN_NOT_ACTIVE')
+  if (!campaignAcceptsProposal(kind, { status: eligibility.active ? 'Active' : 'Inactive', frozen: eligibility.frozen })) {
+    throw new Error(kind === 'Unfreeze' ? 'CAMPAIGN_NOT_FROZEN' : 'CAMPAIGN_NOT_ACTIVE')
+  }
 
   let amount = 0n
-  if (kind === 'Freeze') {
+  if (requiresProposalThreshold(kind)) {
     if (eligibility.currentVotingPower < eligibility.threshold) {
       throw new Error('BELOW_PROPOSAL_THRESHOLD')
     }
@@ -92,7 +97,7 @@ export async function createGovernanceProposal(
     CHAIN_IDS.hardhat,
   )
   const transaction = await governance.propose(
-    kind === 'Freeze' ? 0 : 1,
+    proposalKindValue(kind),
     campaignId,
     amount,
   )

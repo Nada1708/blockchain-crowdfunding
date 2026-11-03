@@ -78,4 +78,34 @@ describe("Fundora real-contract integration", function () {
     expect(proposal.forVotes).to.equal(ETH("1000"));
     expect(await governance.state(1n)).to.equal(0n);
   });
+
+  it("freezes and unfreezes through separate 48-hour DAO votes", async function () {
+    const [admin, beneficiary, contributor] = await ethers.getSigners();
+    const token = await ethers.deployContract("CFDToken", [admin.address]);
+    const crowdfunding = await ethers.deployContract("Crowdfunding", [
+      await token.getAddress(), admin.address,
+    ]);
+    const governance = await ethers.deployContract("CFDGovernance", [
+      await token.getAddress(), await crowdfunding.getAddress(), admin.address,
+    ]);
+
+    await token.grantRole(await token.MINTER_ROLE(), await crowdfunding.getAddress());
+    await crowdfunding.grantRole(await crowdfunding.GOVERNANCE_ROLE(), await governance.getAddress());
+    await crowdfunding.createCampaign(beneficiary.address, ETH("1"), 30 * DAY, "ipfs://unfreeze-test");
+    await crowdfunding.connect(contributor).contribute(1n, { value: ETH("0.1") });
+
+    await governance.connect(contributor).propose(0, 1n, 0n);
+    await governance.connect(contributor).castVote(1n, true);
+    await ethers.provider.send("evm_increaseTime", [48 * 60 * 60]);
+    await ethers.provider.send("evm_mine", []);
+    await governance.execute(1n);
+    expect((await crowdfunding.getCampaign(1n)).frozen).to.equal(true);
+
+    await governance.connect(contributor).propose(2, 1n, 0n);
+    await governance.connect(contributor).castVote(2n, true);
+    await ethers.provider.send("evm_increaseTime", [48 * 60 * 60]);
+    await ethers.provider.send("evm_mine", []);
+    await governance.execute(2n);
+    expect((await crowdfunding.getCampaign(1n)).frozen).to.equal(false);
+  });
 });

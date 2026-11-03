@@ -61,6 +61,11 @@ export const cfdGovernanceAbi: InterfaceAbi = [
   },
   {
     "inputs": [],
+    "name": "CampaignNotFrozen",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "EnforcedPause",
     "type": "error"
   },

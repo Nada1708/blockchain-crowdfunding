@@ -175,7 +175,7 @@ contract Crowdfunding is ICrowdfunding, AccessControl, ReentrancyGuard, Pausable
         emit CampaignFrozen(id);
     }
 
-    function unfreezeCampaign(uint256 id) external onlyRole(GOVERNANCE_ROLE) {
+    function unfreezeCampaign(uint256 id) external override onlyRole(GOVERNANCE_ROLE) {
         Campaign storage c = _get(id);
         c.frozen = false;
         emit CampaignUnfrozen(id);
@@ -197,6 +197,10 @@ contract Crowdfunding is ICrowdfunding, AccessControl, ReentrancyGuard, Pausable
         if (id == 0 || id > campaignCount) return false;
         Campaign storage c = _campaigns[id];
         return !c.frozen && !c.cancelled && block.timestamp < c.deadline;
+    }
+
+    function isFrozen(uint256 id) external view override returns (bool) {
+        return _get(id).frozen;
     }
 
     /// @notice Statut : Annulée > En cours (avant la date limite) > Réussie / Échouée.

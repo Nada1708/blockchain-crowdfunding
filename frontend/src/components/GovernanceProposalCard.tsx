@@ -9,7 +9,7 @@ export default function GovernanceProposalCard({ proposal }: { proposal: Governa
   const quorumProgress = Math.min((totalVotes / proposal.quorum) * 100, 100);
   const forProgress = totalVotes ? (proposal.votesFor / totalVotes) * 100 : 0;
   const statusKey = proposal.status.toLowerCase();
-  const typeKey = proposal.type === 'Freeze' ? 'freeze' : 'earlyRelease';
+  const typeKey = proposal.type === 'Freeze' ? 'freeze' : proposal.type === 'Unfreeze' ? 'unfreeze' : 'earlyRelease';
 
   return (
     <article className="proposal-card">

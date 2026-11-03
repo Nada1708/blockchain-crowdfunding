@@ -7,6 +7,9 @@ export type WalletContextValue = {
   address: string | null;
   chainId: number | null;
   isMetaMaskAvailable: boolean;
+  isWalletReady: boolean;
+  hasExplicitConnection: boolean;
+  walletEventId: number;
   isConnecting: boolean;
   error: WalletError;
   isSepolia: boolean;
@@ -15,6 +18,7 @@ export type WalletContextValue = {
   isSwitchingNetwork: boolean;
   networkError: WalletNetworkError;
   connect: () => Promise<void>;
+  changeWallet: () => Promise<'changed' | 'unsupported' | 'rejected'>;
   switchToHardhat: () => Promise<void>;
   refreshCfdBalance: () => void;
   disconnectLocal: () => void;

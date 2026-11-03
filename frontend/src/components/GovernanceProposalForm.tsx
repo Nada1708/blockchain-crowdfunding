@@ -11,6 +11,7 @@ import {
   type ProposalEligibility,
   type ProposalKind,
 } from '../services/governanceTransactions'
+import { campaignAcceptsProposal, requiresProposalThreshold } from '../services/governance-proposal'
 import { readOnChainCampaigns, readOnChainProposals, type OnChainCampaign, type OnChainProposal } from '../services/onchain'
 
 type TransactionState = 'idle' | 'signature' | 'pending' | 'success' | 'error'
@@ -54,9 +55,9 @@ export default function GovernanceProposalForm({ onProposalConfirmed, refreshVer
     return () => { active = false }
   }, [address, chainId, eligibilityKey, selectedId])
 
-  const activeCampaigns = useMemo(
-    () => campaigns.filter((campaign) => campaign.status === 'Active' && !campaign.frozen),
-    [campaigns],
+  const eligibleCampaigns = useMemo(
+    () => campaigns.filter((campaign) => campaignAcceptsProposal(kind, campaign)),
+    [campaigns, kind],
   )
   const eligibility = eligibilityResult?.key === eligibilityKey ? eligibilityResult.value : undefined
   const selectedCampaign = campaigns.find((campaign) => campaign.id === selectedId)
@@ -79,10 +80,11 @@ export default function GovernanceProposalForm({ onProposalConfirmed, refreshVer
     selectedCampaign &&
     parseEther(selectedCampaign.approvedEth) + pendingEarlyRelease + parsedAmount > parseEther(selectedCampaign.raisedEth),
   )
-  const amountValid = kind === 'Freeze' || parseEarlyReleaseAmount(amount) !== null
-  const kindEligible = kind === 'Freeze'
+  const amountValid = kind !== 'EarlyRelease' || parseEarlyReleaseAmount(amount) !== null
+  const kindEligible = requiresProposalThreshold(kind)
     ? Boolean(eligibility && eligibility.currentVotingPower >= eligibility.threshold)
     : Boolean(eligibility?.isBeneficiary)
+  const campaignEligible = Boolean(selectedCampaign && campaignAcceptsProposal(kind, selectedCampaign))
   const contractsConfigured = Boolean(
     getContractAddress(CHAIN_IDS.hardhat, 'CFDGovernance') &&
       getContractAddress(CHAIN_IDS.hardhat, 'CFDToken') &&
@@ -90,7 +92,7 @@ export default function GovernanceProposalForm({ onProposalConfirmed, refreshVer
       CONTRACT_ABIS.CFDToken,
   )
   const canSubmit = Boolean(
-    address && chainId === CHAIN_IDS.hardhat && selectedId > 0 && eligibility?.active && kindEligible && amountValid && contractsConfigured && !isBusy && !confirmationOpen && !capacityExceeded && completedFormKey !== formKey,
+    address && chainId === CHAIN_IDS.hardhat && selectedId > 0 && campaignEligible && kindEligible && amountValid && contractsConfigured && !isBusy && !confirmationOpen && !capacityExceeded && completedFormKey !== formKey,
   )
 
   const resetTransaction = () => {
@@ -139,7 +141,8 @@ export default function GovernanceProposalForm({ onProposalConfirmed, refreshVer
           : message === 'BELOW_PROPOSAL_THRESHOLD' ? 'threshold'
             : message === 'NOT_BENEFICIARY' ? 'beneficiary'
               : message === 'INVALID_AMOUNT' ? 'amount'
-                : message === 'CAMPAIGN_NOT_ACTIVE' ? 'inactive' : 'failed'
+                : message === 'CAMPAIGN_NOT_ACTIVE' ? 'inactive'
+                  : message === 'CAMPAIGN_NOT_FROZEN' ? 'notFrozen' : 'failed'
       setErrorMessage(t(`proposalForm.errors.${key}`))
       setState('error')
       setConfirmationOpen(false)
@@ -165,20 +168,21 @@ export default function GovernanceProposalForm({ onProposalConfirmed, refreshVer
       <form onSubmit={submit} noValidate>
         <fieldset disabled={isBusy || confirmationOpen}>
           <legend>{t('proposalForm.type')}</legend>
-          <label><input type="radio" name="proposal-kind" value="Freeze" checked={kind === 'Freeze'} onChange={() => { setKind('Freeze'); setAmount(''); resetTransaction() }} />{t('governance.types.freeze')}</label>
-          <label><input type="radio" name="proposal-kind" value="EarlyRelease" checked={kind === 'EarlyRelease'} onChange={() => { setKind('EarlyRelease'); resetTransaction() }} />{t('governance.types.earlyRelease')}</label>
+          <label><input type="radio" name="proposal-kind" value="Freeze" checked={kind === 'Freeze'} onChange={() => { setKind('Freeze'); setCampaignId(''); setAmount(''); resetTransaction() }} />{t('governance.types.freeze')}</label>
+          <label><input type="radio" name="proposal-kind" value="Unfreeze" checked={kind === 'Unfreeze'} onChange={() => { setKind('Unfreeze'); setCampaignId(''); setAmount(''); resetTransaction() }} />{t('governance.types.unfreeze')}</label>
+          <label><input type="radio" name="proposal-kind" value="EarlyRelease" checked={kind === 'EarlyRelease'} onChange={() => { setKind('EarlyRelease'); setCampaignId(''); resetTransaction() }} />{t('governance.types.earlyRelease')}</label>
         </fieldset>
-        <label className="proposal-field"><span>{t('proposalForm.campaign')}</span><select value={campaignId} onChange={(event) => { setCampaignId(event.target.value); resetTransaction() }} disabled={isBusy || confirmationOpen || campaignsState !== 'ready'}><option value="">{campaignsState === 'loading' ? t('proposalForm.loadingCampaigns') : t('proposalForm.chooseCampaign')}</option>{activeCampaigns.map((campaign) => <option key={campaign.id} value={campaign.id}>{campaign.metadata?.title || t('onchain.campaignFallback', { id: campaign.id })}</option>)}</select></label>
+        <label className="proposal-field"><span>{t('proposalForm.campaign')}</span><select value={campaignId} onChange={(event) => { setCampaignId(event.target.value); resetTransaction() }} disabled={isBusy || confirmationOpen || campaignsState !== 'ready'}><option value="">{campaignsState === 'loading' ? t('proposalForm.loadingCampaigns') : t('proposalForm.chooseCampaign')}</option>{eligibleCampaigns.map((campaign) => <option key={campaign.id} value={campaign.id}>{campaign.metadata?.title || t('onchain.campaignFallback', { id: campaign.id })}</option>)}</select></label>
         {campaignsState === 'error' && <p className="proposal-form-error">{t('onchain.readError')}</p>}
-        {campaignsState === 'ready' && activeCampaigns.length === 0 && <p className="proposal-form-note">{t('proposalForm.noCampaigns')}</p>}
+        {campaignsState === 'ready' && eligibleCampaigns.length === 0 && <p className="proposal-form-note">{t(kind === 'Unfreeze' ? 'proposalForm.noFrozenCampaigns' : 'proposalForm.noCampaigns')}</p>}
         {kind === 'EarlyRelease' && <label className="proposal-field"><span>{t('proposalForm.amount')}</span><input type="number" min="0" step="any" inputMode="decimal" value={amount} onChange={(event) => { if (!isBusy && !confirmationOpen) { setAmount(event.target.value); resetTransaction() } }} disabled={confirmationOpen} aria-invalid={Boolean(amount && !amountValid)} aria-describedby={amount && !amountValid ? 'proposal-amount-error' : undefined} placeholder="0.01" /></label>}
         {kind === 'EarlyRelease' && amount && !amountValid && <p id="proposal-amount-error" className="proposal-form-error">{t('proposalForm.errors.amount')}</p>}
         {eligibility === undefined && address && campaignId && chainId === CHAIN_IDS.hardhat && <p className="proposal-form-note">{t('proposalForm.checking')}</p>}
         {eligibility === null && <p className="proposal-form-error">{t('proposalForm.errors.eligibility')}</p>}
-        {eligibility && kind === 'Freeze' && <p className="proposal-form-note">{t('proposalForm.currentVotingPower', { votes: Number(formatUnits(eligibility.currentVotingPower, 18)).toLocaleString(), threshold: Number(formatUnits(eligibility.threshold, 18)).toLocaleString() })}</p>}
-        {eligibility && kind === 'Freeze' && <p className="proposal-form-note">{t('proposalForm.historicalVotingPower', { votes: Number(formatUnits(eligibility.historicalVotingPower, 18)).toLocaleString(), snapshot: eligibility.historicalSnapshot.toString() })}</p>}
-        {eligibility && kind === 'Freeze' && <p className="proposal-form-note">{t('proposalForm.contractAuthority')}</p>}
-        {eligibility && kind === 'Freeze' && !kindEligible && <p className="proposal-form-error">{t('proposalForm.errors.threshold')}</p>}
+        {eligibility && requiresProposalThreshold(kind) && <p className="proposal-form-note">{t('proposalForm.currentVotingPower', { votes: Number(formatUnits(eligibility.currentVotingPower, 18)).toLocaleString(), threshold: Number(formatUnits(eligibility.threshold, 18)).toLocaleString() })}</p>}
+        {eligibility && requiresProposalThreshold(kind) && <p className="proposal-form-note">{t('proposalForm.historicalVotingPower', { votes: Number(formatUnits(eligibility.historicalVotingPower, 18)).toLocaleString(), snapshot: eligibility.historicalSnapshot.toString() })}</p>}
+        {eligibility && requiresProposalThreshold(kind) && <p className="proposal-form-note">{t('proposalForm.contractAuthority')}</p>}
+        {eligibility && requiresProposalThreshold(kind) && !kindEligible && <p className="proposal-form-error">{t('proposalForm.errors.threshold')}</p>}
         {eligibility && kind === 'EarlyRelease' && !eligibility.isBeneficiary && <p className="proposal-form-error">{t('proposalForm.errors.beneficiary')}</p>}
         {duplicateRequiresAcknowledgement && <p className="proposal-duplicate-warning" role="alert">{t('proposalSafety.duplicateWarning', { ids: duplicateProposals.map((proposal) => `#${proposal.id}`).join(', ') })}</p>}
         {capacityExceeded && <p className="proposal-form-error" role="alert">{t('proposalSafety.capacityExceeded')}</p>}
@@ -190,7 +194,7 @@ export default function GovernanceProposalForm({ onProposalConfirmed, refreshVer
         {confirmationOpen && <div className="proposal-confirmation" role="alertdialog" aria-labelledby="proposal-confirmation-title" aria-describedby="proposal-confirmation-description">
           <h3 id="proposal-confirmation-title">{t('proposalSafety.confirmTitle')}</h3>
           <p id="proposal-confirmation-description">{t('proposalSafety.confirmDescription')}</p>
-          <dl><div><dt>{t('proposalForm.type')}</dt><dd>{t(`governance.types.${kind === 'Freeze' ? 'freeze' : 'earlyRelease'}`)}</dd></div><div><dt>{t('proposalForm.campaign')}</dt><dd>{selectedCampaign?.metadata?.title || t('onchain.campaignFallback', { id: selectedId })} (#{selectedId})</dd></div><div><dt>{t('proposalSafety.requestedAmount')}</dt><dd>{kind === 'Freeze' ? '0 ETH' : `${amount} ETH`}</dd></div></dl>
+          <dl><div><dt>{t('proposalForm.type')}</dt><dd>{t(`governance.types.${kind === 'Freeze' ? 'freeze' : kind === 'Unfreeze' ? 'unfreeze' : 'earlyRelease'}`)}</dd></div><div><dt>{t('proposalForm.campaign')}</dt><dd>{selectedCampaign?.metadata?.title || t('onchain.campaignFallback', { id: selectedId })} (#{selectedId})</dd></div><div><dt>{t('proposalSafety.requestedAmount')}</dt><dd>{kind === 'EarlyRelease' ? `${amount} ETH` : '0 ETH'}</dd></div></dl>
           {duplicateRequiresAcknowledgement && <label className="proposal-duplicate-ack"><input type="checkbox" checked={duplicateAcknowledged} onChange={(event) => setDuplicateAcknowledged(event.target.checked)} />{t('proposalSafety.duplicateAcknowledge')}</label>}
           <div className="proposal-confirmation-actions"><button type="button" onClick={() => void confirmSubmission()} disabled={isBusy || (duplicateRequiresAcknowledgement && !duplicateAcknowledged)}>{state === 'signature' ? t('proposalForm.signature') : state === 'pending' ? t('proposalForm.pending') : t('proposalSafety.confirm')}</button><button type="button" onClick={cancelConfirmation} disabled={isBusy}>{t('proposalSafety.cancel')}</button></div>
         </div>}

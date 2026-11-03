@@ -24,7 +24,7 @@ fresh node, reset the matching local Ignition journal before redeploying:
 npx.cmd hardhat ignition deploy ignition/modules/Fundora.ts --network localhost --deployment-id fundora-local --reset
 ```
 
-Verify the deployed bytecode, contract links, roles, chain ID, and multisig
+Verify the deployed Freeze/Unfreeze bytecode, contract links, roles, chain ID, and multisig
 threshold:
 
 ```powershell

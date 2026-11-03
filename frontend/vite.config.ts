@@ -5,8 +5,13 @@ import { defineConfig } from 'vite'
 export default defineConfig({
   plugins: [react()],
   server: {
+    host: 'localhost',
+    port: 5173,
+    strictPort: true,
     proxy: {
+      '/api/auth': 'http://127.0.0.1:8787',
       '/api/ipfs': 'http://127.0.0.1:8787',
+      '/api/health': 'http://127.0.0.1:8787',
     },
   },
 })

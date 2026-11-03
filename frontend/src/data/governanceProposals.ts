@@ -1,4 +1,4 @@
-export type ProposalType = 'Freeze' | 'EarlyRelease';
+export type ProposalType = 'Freeze' | 'EarlyRelease' | 'Unfreeze';
 export type ProposalStatus = 'Active' | 'Passed' | 'Rejected';
 
 export type GovernanceProposal = {

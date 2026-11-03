@@ -1,5 +1,5 @@
 import { CloudUpload, ImagePlus, WalletCards } from 'lucide-react';
-import { BrowserProvider, isAddress, parseEther } from 'ethers';
+import { BrowserProvider, isAddress, parseEther, ZeroAddress } from 'ethers';
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
@@ -31,6 +31,8 @@ const initialValues: FormValues = {
 
 const acceptedImageTypes = ['image/jpeg', 'image/png', 'image/webp'];
 const maxImageSize = 5 * 1024 * 1024;
+const maxTitleLength = 160;
+const maxDescriptionLength = 5000;
 
 export default function CreateCampaign() {
   const { t } = useTranslation();
@@ -120,7 +122,9 @@ export default function CreateCampaign() {
   const validate = () => {
     const nextErrors: FormErrors = {};
     if (!values.title.trim()) nextErrors.title = 'createPage.errors.required';
+    else if (values.title.trim().length > maxTitleLength) nextErrors.title = 'createPage.errors.titleLength';
     if (!values.description.trim()) nextErrors.description = 'createPage.errors.required';
+    else if (values.description.trim().length > maxDescriptionLength) nextErrors.description = 'createPage.errors.descriptionLength';
     if (!values.goal.trim()) nextErrors.goal = 'createPage.errors.required';
     else {
       try {
@@ -133,7 +137,7 @@ export default function CreateCampaign() {
     else if (!Number.isInteger(Number(values.duration)) || Number(values.duration) <= 0) nextErrors.duration = 'createPage.errors.duration';
     else if (Number(values.duration) > 365) nextErrors.duration = 'createBlockchain.durationMax';
     if (!values.beneficiary.trim()) nextErrors.beneficiary = 'createPage.errors.required';
-    else if (!isAddress(values.beneficiary.trim())) nextErrors.beneficiary = 'createPage.errors.address';
+    else if (!isAddress(values.beneficiary.trim()) || values.beneficiary.trim().toLowerCase() === ZeroAddress) nextErrors.beneficiary = 'createPage.errors.address';
     return nextErrors;
   };
 
@@ -234,13 +238,13 @@ export default function CreateCampaign() {
         <form ref={formRef} className="campaign-form" onSubmit={handleSubmit} noValidate>
           <div className="form-field">
             <label htmlFor="campaign-title">{t('createPage.fields.title')}</label>
-            <input id="campaign-title" value={values.title} onChange={(event) => updateField('title', event.target.value)} aria-invalid={Boolean(errors.title)} aria-describedby={errors.title ? 'campaign-title-error' : undefined} required />
+            <input id="campaign-title" maxLength={maxTitleLength} value={values.title} onChange={(event) => updateField('title', event.target.value)} aria-invalid={Boolean(errors.title)} aria-describedby={errors.title ? 'campaign-title-error' : undefined} required />
             {errors.title && <p id="campaign-title-error" className="field-error">{fieldError('title')}</p>}
           </div>
 
           <div className="form-field">
             <label htmlFor="campaign-description">{t('createPage.fields.description')}</label>
-            <textarea id="campaign-description" rows={6} value={values.description} onChange={(event) => updateField('description', event.target.value)} aria-invalid={Boolean(errors.description)} aria-describedby={errors.description ? 'campaign-description-error' : undefined} required />
+            <textarea id="campaign-description" rows={6} maxLength={maxDescriptionLength} value={values.description} onChange={(event) => updateField('description', event.target.value)} aria-invalid={Boolean(errors.description)} aria-describedby={errors.description ? 'campaign-description-error' : undefined} required />
             {errors.description && <p id="campaign-description-error" className="field-error">{fieldError('description')}</p>}
           </div>
 
@@ -259,7 +263,7 @@ export default function CreateCampaign() {
 
           <div className="form-field">
             <label htmlFor="campaign-beneficiary">{t('createPage.fields.beneficiary')}</label>
-            <input id="campaign-beneficiary" className="address-input" value={values.beneficiary} onChange={(event) => updateField('beneficiary', event.target.value)} placeholder="0x..." spellCheck={false} aria-invalid={Boolean(errors.beneficiary)} aria-describedby={errors.beneficiary ? 'campaign-beneficiary-error' : 'campaign-beneficiary-hint'} required />
+            <input id="campaign-beneficiary" className="address-input" maxLength={42} value={values.beneficiary} onChange={(event) => updateField('beneficiary', event.target.value)} placeholder="0x..." spellCheck={false} aria-invalid={Boolean(errors.beneficiary)} aria-describedby={errors.beneficiary ? 'campaign-beneficiary-error' : 'campaign-beneficiary-hint'} required />
             <p id="campaign-beneficiary-hint" className="field-hint">{t('createPage.fields.beneficiaryHint')}</p>
             {errors.beneficiary && <p id="campaign-beneficiary-error" className="field-error">{fieldError('beneficiary')}</p>}
           </div>

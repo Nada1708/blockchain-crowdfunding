@@ -12,6 +12,7 @@
 
 # Local Hardhat Ignition journals and generated deployment metadata
 /ignition/deployments/fundora-local/
+/ignition/deployments/fundora-final-31337/
 
 # Hardhat compilation (v2) support directory
 /cache

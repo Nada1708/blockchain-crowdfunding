@@ -5,6 +5,7 @@ import CampaignCard from '../components/CampaignCard';
 import GovernancePreview from '../components/GovernancePreview';
 import HowItWorks from '../components/HowItWorks';
 import { featuredCampaigns } from '../data/campaigns';
+import fundoraIcon from '../assets/fundora-icon.png';
 import './Home.css';
 
 export default function Home() {
@@ -71,7 +72,7 @@ export default function Home() {
         <span className="impact-glow impact-glow-two" />
         <span className="impact-glow impact-glow-three" />
         <div className="impact-card">
-          <div className="impact-card-top"><span className="impact-card-icon">F</span><span className="impact-card-status">{t('home.trust')}</span></div>
+          <div className="impact-card-top"><span className="impact-card-icon"><img src={fundoraIcon} alt="" /></span><span className="impact-card-status">{t('home.trust')}</span></div>
           <div className="impact-message" key={impactMessage}>
             <span>{[t('home.impact'), t('home.collective'), t('home.dao')][impactMessage]}</span>
             <strong>{[t('home.backed'), t('home.collectiveText'), t('home.daoText')][impactMessage]}</strong>

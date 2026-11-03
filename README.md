@@ -30,7 +30,7 @@ DEMO content visibly separate from data read from the deployed contracts.
 - **Crowdfunding** creates campaigns, accepts ETH contributions, mints CFD,
   handles eligible refunds and beneficiary withdrawals, and supports campaign
   cancellation, pause, freeze, and DAO-authorized early release.
-- **CFDGovernance** creates Freeze and EarlyRelease proposals, records
+- **CFDGovernance** creates Freeze, Unfreeze, and EarlyRelease proposals, records
   snapshot-weighted CFD votes, checks quorum, and executes adopted decisions on
   Crowdfunding.
 - **MultiSigTreasury** is a two-of-three signer treasury for submitting,
@@ -38,8 +38,9 @@ DEMO content visibly separate from data read from the deployed contracts.
   the Fundora stack but is not used as an automatic frontend transaction path.
 
 The Ignition module grants Crowdfunding the CFD minter and burner roles and
-grants CFDGovernance the Crowdfunding governance role. It does not change the
-application contracts.
+grants CFDGovernance the Crowdfunding governance role. The local deployer keeps
+the bootstrap admin/pauser roles; MultiSigTreasury is a tested standalone 2-of-3
+treasury and is not yet the administrator of the application contracts.
 
 ## Repository layout
 
@@ -87,6 +88,8 @@ Validate the frontend:
 ```powershell
 Set-Location frontend
 npm.cmd run lint
+npm.cmd run test:frontend
+npm.cmd run test:api
 npm.cmd run build
 ```
 
@@ -122,6 +125,31 @@ portable across a reset of the Hardhat node. See
 restart workflow.
 
 ## Frontend and IPFS
+
+Copy the two templates before starting the application (both resulting files
+are ignored by Git):
+
+```powershell
+Copy-Item frontend/.env.example frontend/.env.local
+Copy-Item frontend/server/.env.example frontend/server/.env
+```
+
+Use three terminals after the Hardhat node and deployment are ready:
+
+```powershell
+# Terminal A — contracts
+npx.cmd hardhat node --hostname 127.0.0.1 --port 8545
+
+# Terminal B — SIWE and IPFS API
+npm.cmd --prefix frontend run server
+
+# Terminal C — React
+npm.cmd --prefix frontend run dev
+```
+
+The first three standard Hardhat accounts are the MultiSigTreasury signers;
+account zero is also the local bootstrap admin/pauser. Import only accounts intended for local
+testing into MetaMask; never publish or reuse their development keys.
 
 Frontend setup, routes, wallet behavior, and implemented transaction flows are
 documented in [`frontend/README.md`](frontend/README.md). Secure Pinata proxy

@@ -16,7 +16,7 @@ keeps DEMO records explicitly separate from on-chain records.
   Pinata proxy.
 - Campaign creation after IPFS upload, ETH contributions, eligible refunds,
   creator cancellation, and DAO-authorized beneficiary withdrawals.
-- DAO proposal creation for Freeze and EarlyRelease, duplicate-proposal guards,
+- DAO proposal creation for Freeze, Unfreeze, and EarlyRelease, duplicate-proposal guards,
   snapshot-weighted voting, and execution of succeeded proposals.
 - Transaction lifecycle feedback for MetaMask confirmation, pending receipts,
   rejection, contract errors, and success, followed by automatic data refresh.
@@ -38,6 +38,12 @@ npm.cmd run dev
 ```
 
 Vite serves the application at `http://localhost:5173` by default.
+
+Start the SIWE/IPFS API in another terminal before Vite:
+
+```powershell
+npm.cmd run server
+```
 
 Validate the frontend with:
 

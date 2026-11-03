@@ -1,4 +1,4 @@
-import { type BrowserProvider, parseEther } from 'ethers'
+import { type BrowserProvider, isAddress, parseEther, ZeroAddress } from 'ethers'
 import { CHAIN_IDS } from '../config/contracts'
 import { getWriteContract } from './blockchain'
 
@@ -28,6 +28,12 @@ export async function createCampaignOnChain(
 ): Promise<CreateCampaignResult> {
   if (!isValidIpfsCid(input.metadataCid)) {
     throw new Error('INVALID_IPFS_CID')
+  }
+  if (!isAddress(input.beneficiary) || input.beneficiary.toLowerCase() === ZeroAddress) {
+    throw new Error('INVALID_BENEFICIARY')
+  }
+  if (!Number.isInteger(input.durationDays) || input.durationDays <= 0 || input.durationDays > 365) {
+    throw new Error('INVALID_DURATION')
   }
 
   const crowdfunding = await getWriteContract(

@@ -1,5 +1,6 @@
 import { formatEther } from 'ethers'
 import { getHardhatReadProvider, getReadContract } from './blockchain'
+import { proposalKindFromValue, type ProposalKind } from './governance-proposal'
 
 export type OnChainCampaignStatus =
   | 'Active'
@@ -17,6 +18,7 @@ export type OnChainCampaign = {
   id: number
   cid: string
   beneficiary: string
+  creator: string
   deadline: number
   frozen: boolean
   goalEth: string
@@ -39,7 +41,7 @@ export type OnChainProposalState =
 
 export type OnChainProposal = {
   id: number
-  type: 'Freeze' | 'EarlyRelease'
+  type: ProposalKind
   campaignId: number
   amountEth: string
   proposer: string
@@ -155,6 +157,7 @@ export async function readOnChainCampaigns(): Promise<OnChainCampaign[]> {
         id,
         cid,
         beneficiary: String(campaign.beneficiary),
+        creator: String(campaign.creator),
         deadline: Number(campaign.deadline),
         frozen: Boolean(campaign.frozen),
         goalEth: formatEther(campaign.goal),
@@ -190,7 +193,7 @@ export async function readOnChainProposals(): Promise<OnChainProposal[]> {
 
       return {
         id,
-        type: Number(proposal.pType) === 0 ? 'Freeze' : 'EarlyRelease',
+        type: proposalKindFromValue(Number(proposal.pType)),
         campaignId: Number(proposal.campaignId),
         amountEth: formatEther(proposal.amount),
         proposer: String(proposal.proposer),
