@@ -61,18 +61,22 @@ templates are versioned.
 
 ## Prerequisites
 
-- Node.js LTS and npm
+- Windows 11 with PowerShell (the documented commands use `*.cmd`), Git,
+  Node.js 24 and npm
 - MetaMask for manual transaction flows
 - A Pinata JWT only when testing IPFS uploads; keep it in
   `frontend/server/.env`, never in a `VITE_*` variable
 
-Install the contract and frontend dependencies from the repository root:
+For a clean installation on another computer, follow the French step-by-step
+guide: [`docs/DEMARRAGE_FUNDORA.md`](docs/DEMARRAGE_FUNDORA.md). It covers the
+local Hardhat network, MetaMask, contract deployment, Express/SIWE, Vite, IPFS,
+tests, and troubleshooting.
+
+Install the locked contract and frontend dependencies from the repository root:
 
 ```powershell
-npm install
-Set-Location frontend
-npm install
-Set-Location ..
+npm.cmd ci
+npm.cmd --prefix frontend ci
 ```
 
 ## Compile and test
