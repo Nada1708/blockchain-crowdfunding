@@ -1,74 +1,102 @@
-# Modèle de sécurité — Gouvernance DAO et trésorerie
+# Modèle de sécurité — Fundora
 
-Responsable : Membre 2 (Gouvernance & Cybersécurité)
-Contrats : `CFDGovernance.sol`, `MultiSigTreasury.sol`
+Périmètre : `CFDToken.sol`, `Crowdfunding.sol`, `CFDGovernance.sol` et
+`MultiSigTreasury.sol`.
 
-## 1. Ce qu'on protège (actifs)
+## 1. Actifs et séparation des fonds
 
-| Actif | Pourquoi c'est critique |
+| Actif | Propriété de sécurité |
 |---|---|
-| Les ETH des contributeurs | Argent réel en production : un vol est irréversible |
-| Les décisions de gouvernance | Un gel ou un déblocage frauduleux détourne les fonds |
-| Le pouvoir de vote (CFD) | Le manipuler revient à contrôler la DAO |
+| ETH des campagnes dans `Crowdfunding` | Escrow affecté aux contributeurs et bénéficiaires ; retraits gouvernés par la DAO, remboursements selon l'état de campagne |
+| ETH de `MultiSigTreasury` | Trésorerie administrative ; aucune sortie sans deux signatures |
+| CFD et pouvoir de vote | Mint/burn contrôlés, snapshots historiques et absence de double vote |
+| Décisions DAO | Quorum, majorité, délai de 48 h et exécution unique |
+| Rôles administratifs | Détenus par le multisig après révocation du déployeur |
 
-## 2. Qui peut attaquer (acteurs)
+Les fonds de campagnes ne doivent pas être transférés dans la trésorerie : cela
+mélangerait l'escrow avec les actifs administratifs et permettrait au multisig
+de se substituer aux règles de remboursement, à la DAO ou au bénéficiaire.
 
-| Acteur | Capacité |
+## 2. Acteurs menaçants
+
+| Acteur | Capacité considérée |
 |---|---|
-| Attaquant externe | Appelle n'importe quelle fonction publique, déploie des contrats malveillants |
-| Détenteur de CFD malveillant | Vote, transfère ses jetons, emprunte des jetons (flash loan) |
-| Bénéficiaire malhonnête | Tente de récupérer les fonds sans accord des contributeurs |
-| Signataire corrompu ou piraté | Possède 1 clé sur 3 de la multisig |
+| Attaquant externe | Appels publics et déploiement de contrats malveillants |
+| Détenteur CFD malveillant | Vote, transfert ou acquisition temporaire de jetons |
+| Bénéficiaire malhonnête | Tentative de retrait sans autorisation DAO |
+| Signataire compromis | Contrôle d'une clé sur trois |
+| Créateur malhonnête | Annulation ou métadonnées trompeuses |
 
 ## 3. Menaces, protections et preuves
 
-| # | Menace | Notion de sécurité | Protection implémentée | Test qui le prouve |
-|---|---|---|---|---|
-| T1 | Prise de contrôle éclair : emprunter des CFD, voter, les rendre | Anti-manipulation de gouvernance | Snapshot : poids lu via `getPastVotes(voter, snapshot)`, photo prise à la création (`clock() - 1`) | `test_SnapshotBlocksFlashVote`, `testFuzz_VoteWeightEqualsSnapshotBalance` |
-| T2 | Faire voter les mêmes jetons deux fois en les transférant | Intégrité du vote | Snapshot + `hasVoted[id][voter]` | `test_TransferAfterSnapshotDoesNotDoubleVote`, `test_RevertWhen_DoubleVote` |
-| T3 | Décision prise par une minorité | Légitimité | Quorum de 20 % du total au snapshot + majorité stricte | `test_DefeatedWhenQuorumNotReached` |
-| T4 | Voter après la clôture | Intégrité temporelle | `block.timestamp >= voteEnd` → `VotingClosed` | `test_RevertWhen_VoteAfterDeadline` |
-| T5 | Exécuter deux fois une décision | Anti-rejeu | `executed = true` avant l'appel externe | `test_RevertWhen_ExecuteTwice` (DAO et multisig) |
-| T6 | Demander le déblocage d'une campagne qui n'est pas la sienne | Contrôle d'accès | Seul `beneficiaryOf(campaignId)` peut proposer un déblocage | `test_RevertWhen_NonBeneficiaryAsksRelease` |
-| T7 | Spam de propositions | Disponibilité | Seuil de 100 CFD au snapshot pour proposer un gel | `test_RevertWhen_FreezeProposerBelowThreshold` |
-| T8 | Reentrancy : rappeler `execute` pendant un envoi d'ETH | Anti-reentrance | Pattern Checks-Effects-Interactions + `ReentrancyGuard` (`nonReentrant`) | `test_ReentrancyAttackBlocked` |
-| T9 | Un seul signataire vide la trésorerie | Séparation des pouvoirs | Multisig 2-sur-3, signataires distincts | `test_RevertWhen_OnlyOneSignature`, `test_RevertWhen_SameSignerConfirmsTwice`, `test_RevertWhen_DuplicateSigners` |
-| T10 | Un inconnu propose ou exécute une opération de trésorerie | Contrôle d'accès | Modificateur `onlySigner` | `test_RevertWhen_OutsiderExecutes`, `testFuzz_NonSignerCannotSubmit` |
-| T11 | Incident en cours (bug, attaque) | Circuit breaker | `Pausable` : `propose` et `execute` bloqués ; le vote reste ouvert pour ne pas perdre les voix | `test_PauseBlocksExecution`, `test_PauseBlocksNewProposals` |
-| T12 | Un attaquant déclenche la pause | Contrôle d'accès | `AccessControl` : `PAUSER_ROLE` uniquement (attribué à la multisig) | `test_RevertWhen_AttackerPauses` |
-| T13 | Remplacer le jeton ou le Crowdfunding par une fausse version | Intégrité de configuration | Adresses `immutable`, vérifiées non nulles au déploiement | Revue de code |
+| # | Menace | Protection actuelle | Preuve principale |
+|---|---|---|---|
+| T1 | Acquisition éclair de CFD | Snapshot `clock() - 1` et `getPastVotes` | `test_SnapshotBlocksFlashVote`, `testFuzz_VoteWeightEqualsSnapshotBalance` |
+| T2 | Double vote après transfert | Snapshot et `hasVoted` | `test_TransferAfterSnapshotDoesNotDoubleVote`, `test_RevertWhen_DoubleVote` |
+| T3 | Décision d'une minorité | Quorum 20 % et majorité stricte | `test_DefeatedWhenQuorumNotReached` |
+| T4 | Vote hors délai | Revert `VotingClosed` à `voteEnd` | `test_RevertWhen_VoteAfterDeadline` |
+| T5 | Exécution répétée | `executed = true` avant interaction | Tests `test_RevertWhen_ExecuteTwice` DAO et multisig |
+| T6 | Déblocage demandé par un tiers | EarlyRelease réservé au bénéficiaire | `test_RevertWhen_NonBeneficiaryAsksRelease` |
+| T7 | Spam Freeze/Unfreeze | Seuil de 100 CFD au snapshot | Tests `BelowProposalThreshold` |
+| T8 | Réentrance sur remboursement | CEI et `nonReentrant` | Test Hardhat « bloque une attaque de réentrance sur refund » |
+| T9 | Réentrance du destinataire multisig | CEI et `nonReentrant` | `test_ReentrancyAttackBlocked` |
+| T10 | Un signataire vide la trésorerie | Deux confirmations distinctes sur trois | `test_RevertWhen_OnlyOneSignature`, `test_RevertWhen_SameSignerConfirmsTwice` |
+| T11 | Signataires dupliqués | Validation au constructeur | `test_RevertWhen_DuplicateSigners` |
+| T12 | Opération multisig par un tiers | Modificateur `onlySigner` | `test_RevertWhen_OutsiderExecutes`, `testFuzz_NonSignerCannotSubmit` |
+| T13 | Incident actif | `Pausable` sur Crowdfunding et DAO | Tests de pause et intégration multisig |
+| T14 | Administration résiduelle du déployeur | Transfert au multisig puis révocation bootstrap | `FundoraIntegration` et `verify-local-deployment.mjs` |
+| T15 | Faux token ou faux Crowdfunding | Références immutable et adresses non nulles | Constructeurs et vérification locale |
 
-## 4. Choix de conception justifiés
+## 4. Choix de conception
 
 | Choix | Justification |
 |---|---|
-| Snapshot à `clock() - 1` | `getPastVotes` n'accepte qu'un moment strictement passé ; le bloc précédent exclut les jetons acquis dans le bloc de création |
-| Vote non bloqué pendant la pause | Le délai de 48 h continue de courir ; bloquer le vote ferait perdre les voix. On bloque seulement l'exécution |
-| Multisig 2-sur-3 plutôt que 3-sur-3 | Une clé perdue ne bloque pas la trésorerie, une clé volée ne suffit pas |
-| `PAUSER_ROLE` donné à la multisig | Aucune personne seule ne peut geler le système |
-| Exécution déclenchée par transaction | Un smart contract ne s'exécute jamais seul. N'importe qui peut appeler `execute()`, mais le contrat n'applique la décision que si le vote est réellement adopté |
-| OpenZeppelin (`ERC20Votes`, `AccessControl`, `Pausable`, `ReentrancyGuard`) | Composants standards et audités : on ne réinvente pas la cryptographie ni la gestion des rôles |
+| Snapshot au bloc précédent | Les lectures historiques exigent un bloc strictement passé et excluent les jetons acquis dans le bloc de proposition |
+| Vote ouvert pendant une pause DAO | La période de 48 h continue ; la pause bloque création et exécution, pas l'expression des votes |
+| Multisig 2-sur-3 | Une clé compromise ne suffit pas ; une clé indisponible ne bloque pas le coffre |
+| Rôles admin/pauser au multisig | Aucune personne seule ne peut administrer ou mettre en pause |
+| Exécution DAO par transaction | Le contrat vérifie l'état Succeeded ; aucun smart contract ne s'exécute spontanément |
+| Auto-délégation au premier mint | Les CFD reçus donnent immédiatement des voix sans étape manuelle oubliable |
+| OpenZeppelin | Primitives standard pour ERC-20, votes, rôles, pause et anti-réentrance |
 
-## 5. Paramètres
+## 5. Paramètres justifiés
 
 | Paramètre | Valeur | Justification |
-|---|---|---|
-| Durée du vote | 48 h | Laisse le temps à tous de voter, sans bloquer une urgence trop longtemps |
-| Quorum | 20 % des CFD au snapshot | Empêche une minorité de décider, sans exiger une participation irréaliste |
-| Majorité | > 50 % des voix exprimées | Règle démocratique simple |
-| Seuil de proposition (gel) | 100 CFD | Anti-spam, accessible à tout contributeur de 0,1 ETH |
-| Multisig | 2 signatures sur 3 | Équilibre sécurité / disponibilité |
+|---|---:|---|
+| Taux | 1 ETH = 1 000 CFD | Rend 0,1 ETH équivalent au seuil de proposition de 100 CFD |
+| Contribution minimale | 0,01 ETH | Limite le spam de micro-contributions |
+| Durée maximale | 365 jours | Évite les campagnes sans horizon raisonnable |
+| Durée du vote | 48 h | Participation possible sans bloquer excessivement une urgence |
+| Quorum | 20 % au snapshot | Empêche une petite minorité de décider sans exiger une participation irréaliste |
+| Majorité | `forVotes > againstVotes` | Majorité stricte des voix exprimées |
+| Seuil Freeze/Unfreeze | 100 CFD | Anti-spam, atteint par une contribution de 0,1 ETH |
+| Multisig | 2 signatures sur 3 | Équilibre sécurité et disponibilité |
+| Seuil documentaire de trésorerie | 1 ETH | Sortie significative, égale à 100 contributions minimales ; le contrat exige 2-sur-3 pour tout montant |
 
-## 6. Vérification
+Le seuil de 1 ETH concerne uniquement les fonds détenus par
+`MultiSigTreasury`. La politique on-chain est plus stricte que l'exigence : une
+sortie de 0,1 ETH comme une sortie de 3 ETH exige deux signatures.
 
-- **26 tests** passent, dont **2 scénarios de fuzzing** (256 essais chacun)
-- **Audit Slither** : 0 alerte haute ou moyenne ; 1 alerte corrigée, 3 justifiées (voir `docs/audit/AUDIT.md`)
+## 6. Vérifications disponibles
+
+- **101 tests passent** lors de l'audit final de livraison : 54 Hardhat/Solidity
+  et Mocha, 17 frontend et 30 API/SIWE.
+- Les tests Solidity comprennent deux scénarios métier de fuzzing à 256 essais
+  chacun et des attaques de réentrance sur `refund` et le multisig.
+- Le script `scripts/verify-local-deployment.mjs` contrôle la chaîne 31337, les
+  quatre bytecodes, les liens entre contrats, les rôles, les révocations du
+  déployeur, les trois signataires et `REQUIRED == 2`.
+- Audit Slither final des quatre contrats :
+  [`audit/AUDIT.md`](audit/AUDIT.md) et
+  [`audit/slither-report-final-4-contracts.md`](audit/slither-report-final-4-contracts.md).
+- Slither : 0 High, 0 Medium, 7 Low qualifiés et 3 Informational qualifiés.
 
 ## 7. Limites connues
 
-| Limite | Conséquence | Piste d'amélioration |
+| Limite | Conséquence | Mesure ou amélioration |
 |---|---|---|
-| Les détenteurs doivent appeler `delegate()` pour voter | Des jetons non délégués comptent dans le quorum sans pouvoir voter | Auto-délégation au premier mint (Membre 1) |
-| Pas de délai entre l'adoption et l'exécution (timelock) | Pas de fenêtre de réaction après un vote malveillant | Ajouter un `TimelockController` |
-| Les signataires de la multisig sont fixes | Impossible de remplacer une clé compromise | Ajouter un remplacement de signataire voté en 2/3 |
-| Audit uniquement statique | Ne prouve pas l'absence de failles | Audit manuel externe avant toute mise en production |
+| Pas de timelock après adoption | Pas de fenêtre supplémentaire avant exécution | Ajouter un TimelockController pour une version de production |
+| Signataires fixes | Remplacement d'une clé compromise impossible | Prévoir une rotation gouvernée dans une version ultérieure |
+| Sessions SIWE en mémoire | Perte des sessions au redémarrage, non adapté au multi-instance | Stockage partagé en production |
+| Audit statique uniquement | Ne prouve pas l'absence de vulnérabilités | Audit manuel/externe avant gestion de fonds réels |
+| Démonstration locale | Comptes Hardhat et adresses non persistants | Ne jamais réutiliser les clés locales ; documenter chaque déploiement |
